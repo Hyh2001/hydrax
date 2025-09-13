@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
         # Tighten up the simulator parameters, since it's running on CPU and
         # therefore won't slow down the planner
-        mj_model.opt.timestep = 0.005
+        mj_model.opt.timestep = 0.02
         mj_model.opt.iterations = 100
         mj_model.opt.ls_iterations = 50
         mj_model.opt.cone = mujoco.mjtCone.mjCONE_ELLIPTIC

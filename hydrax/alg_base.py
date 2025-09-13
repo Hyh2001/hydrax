@@ -194,7 +194,6 @@ class SamplingBasedController(ABC):
         states = jax.vmap(lambda _, x: x, in_axes=(0, None))(
             jnp.arange(self.num_randomizations), state
         )
-
         if self.num_randomizations > 1:
             # Randomize the initial states for each domain randomization
             subrngs = jax.random.split(rng, self.num_randomizations)
@@ -206,12 +205,20 @@ class SamplingBasedController(ABC):
         # compute the control sequence from the knots
         tq = jnp.linspace(tk[0], tk[-1], self.ctrl_steps)
         controls = self.interp_func(tq, tk, knots)  # (num_rollouts, H, nu)
-
+        
         # Apply the control sequences, parallelized over both rollouts and
         # domain randomizations.
-        _, rollouts = jax.vmap(
-            self.eval_rollouts, in_axes=(self.randomized_axes, 0, None, None)
-        )(self.model, states, controls, knots)
+        if self.num_randomizations > 1:
+            # With domain randomizations: vmap over rollouts first, then randomizations
+            rollout_vmap = jax.vmap(self.eval_rollouts, in_axes=(None, None, 0, 0))
+            randomization_vmap = jax.vmap(rollout_vmap, in_axes=(self.randomized_axes, 0, None, None))
+            _, rollouts = randomization_vmap(self.model, states, controls, knots)
+        else:
+            # No domain randomizations: just vmap over rollouts
+            rollout_vmap = jax.vmap(self.eval_rollouts, in_axes=(None, None, 0, 0))
+            _, rollouts = rollout_vmap(self.model, states[0], controls, knots)
+            # Add a fake randomization dimension to match expected shape
+            rollouts = jax.tree.map(lambda x: x[None, ...], rollouts)
 
         # Combine the costs from different domain randomizations using the
         # specified risk strategy.
@@ -223,7 +230,6 @@ class SamplingBasedController(ABC):
             costs=costs, controls=controls, knots=knots, trace_sites=trace_sites
         )
 
-    @partial(jax.vmap, in_axes=(None, None, None, 0, 0))
     def eval_rollouts(
         self,
         model: mjx.Model,
