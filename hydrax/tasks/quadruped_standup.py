@@ -26,7 +26,7 @@ class QuadrupedStandup(Task):
         self.torso_id = mj_model.site("imu").id
 
         # Set the target height
-        self.target_height = 0.28
+        self.target_height = 0.25
 
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -45,22 +45,33 @@ class QuadrupedStandup(Task):
     def running_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
         """The running cost ℓ(xₜ, uₜ)."""
         orientation_cost = jnp.sum(
-            jnp.square(self._get_torso_orientation(state))
+            jnp.square(self._get_torso_orientation(state)[0:2])
         )
+        # jax.debug.print("projected gravity {}", self._get_torso_orientation(state))
         height_cost = jnp.square(
             self._get_torso_height(state) - self.target_height
         )
-        nominal_cost = jnp.sum(jnp.square(state.qpos[7:] - self.qstand[7:]))
+        pos_cost = jnp.sum(jnp.square(state.qpos[0:2] - self.qstand[0:2]))
+        # nominal_cost = jnp.sum(jnp.square(state.qpos[7:] - self.qstand[7:]))
+        
+        # Anti-jittering: penalize deviation from standing control
+        u_ref = self.qstand[7:]  # Use standing joint angles as control reference
+        control_smoothness_cost = jnp.sum(jnp.square(control - u_ref))
+        
         # jax.debug.print("orientation_cost {}", orientation_cost)
         # jax.debug.print("height_cost {}", height_cost)
         # jax.debug.print("nominal_cost {}", nominal_cost)
-        # return 10.0 * orientation_cost + 50000.0 * height_cost + 10 * nominal_cost
-        return 1.0 * orientation_cost + 1000.0 * height_cost
+        # return 10.0 * orientation_cost + 10.0 * height_cost + 10 * pos_cost +  0.2 * nominal_cost #roughly works
+        # return 10.0 * orientation_cost + 10.0 * height_cost + 13 * pos_cost +  0.25 * nominal_cost #roguhly works for 0.25m tracking
+        # return 10.0 * orientation_cost + 10.0 * height_cost + 10 * pos_cost + 1.0 * control_smoothness_cost # works roughly for horizon 0.4 terminal cost 1.2 times
+        return 10.0 * orientation_cost + 10.0 * height_cost + 10.0 * pos_cost + 1.0 * control_smoothness_cost
+        # return 10.0 * orientation_cost + 8.0 * height_cost + 10 * pos_cost +  0.2 * nominal_cost
+        # return 1.0 * orientation_cost + 1000.0 * height_cost
         # return nominal_cost
 
     def terminal_cost(self, state: mjx.Data) -> jax.Array:
         """The terminal cost ϕ(x_T)."""
-        return self.running_cost(state, jnp.zeros(self.model.nu))
+        return 1.2*self.running_cost(state, jnp.zeros(self.model.nu)) # 1.2
 
     def domain_randomize_model(self, rng: jax.Array) -> Dict[str, jax.Array]:
         """Randomize the friction parameters."""
