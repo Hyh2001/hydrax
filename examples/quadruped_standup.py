@@ -30,38 +30,36 @@ if __name__ == "__main__":
     task = QuadrupedStandup()
 
     # Set up the controller - OPTIMIZED FOR REALTIME
-    # ctrl = MPPI(
-    #     task,
-    #     num_samples=2048,       
-    #     noise_level=0.1,     # Reduced noise level
-    #     temperature=1.0,     # Increased temperature for stability  
-    #     num_randomizations=1, 
-    #     plan_horizon=0.5,     
-    #     spline_type="zero",
-    #     num_knots=4,         
-    # )
-    ctrl = DIAL(
+    ctrl = MPPI(
         task,
-        num_samples=1024,
-        noise_level=0.2,
-        beta_opt_iter=1.0,
-        beta_horizon=1.0,
-        # temperature=0.001,
-        temperature=0.1,
-        plan_horizon=0.4,
+        num_samples=2048,       # ← Reduced from 128 (4x speedup)
+        noise_level=0.3,     # ← Slightly reduced
+        temperature=0.1,      # ← Higher for faster convergence
+        num_randomizations=1, 
+        plan_horizon=0.4,     
         spline_type="zero",
-        num_knots=4,
-        iterations=2,
+        num_knots=4,         
     )
+    # ctrl = DIAL(
+    #     task,
+    #     num_samples=16,
+    #     noise_level=0.4,
+    #     beta_opt_iter=1.0,
+    #     beta_horizon=1.0,
+    #     temperature=0.001,
+    #     plan_horizon=0.25,
+    #     spline_type="zero",
+    #     num_knots=11,
+    #     iterations=5,
+    # )
     
     
     # Define the model used for simulation - OPTIMIZED FOR REALTIME
     mj_model = task.mj_model
     mj_model.opt.timestep = 0.01      # ← Increased from 0.01 (2x speedup)
-    # mj_model.opt.iterations = 1       # ← Keep minimal
+    mj_model.opt.iterations = 1       # ← Keep minimal
     # mj_model.opt.ls_iterations = 3    # ← Reduced for speed
-    # mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
-    mj_model.opt.o_solimp = [0.8, 0.8, 0.01, 0.5, 2]
+    mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
     mj_model.opt.enableflags = mujoco.mjtEnableBit.mjENBL_OVERRIDE
 
     # Set the initial state so the robot falls and needs to stand back up
