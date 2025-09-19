@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Callable
 
 import jax
 import jax.numpy as jnp
@@ -132,5 +132,17 @@ class Task(ABC):
 
         Returns:
             A dictionary of randomized data elements.
+        """
+        return {}
+
+    @abstractmethod
+    def log_data(self) -> Dict[str, jax.Array]:
+        """Return a dict with data names and data values to log.
+
+        NOTE: It is highly recommended that the name of the first key contains cost for
+        easy caption of cost terms during analyzing. 
+
+        Returns:
+            A dict with cost names and lambda functions to log.
         """
         return {}
