@@ -40,12 +40,13 @@ class HumanoidStandup(Task):
         sensor_adr = self.model.sensor_adr[self.orientation_sensor_id]
         quat = state.sensordata[sensor_adr : sensor_adr + 4]
         upright = jnp.array([0.0, 0.0, 1.0])
-        return mjx._src.math.rotate(upright, quat)
+        return mjx._src.math.rotate(upright, mjx._src.math.quat_inv(quat))
+        # return mjx._src.math.rotate(upright, quat)
 
     def running_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
         """The running cost ℓ(xₜ, uₜ)."""
         orientation_cost = jnp.sum(
-            jnp.square(self._get_torso_orientation(state)) #should be [0:2]
+            jnp.square(self._get_torso_orientation(state)[0:2]) #should be [0:2]
         )
         height_cost = jnp.square(
             self._get_torso_height(state) - self.target_height
@@ -78,3 +79,6 @@ class HumanoidStandup(Task):
         qvel = data.qvel.at[0:6].set(data.qvel[0:6] + v_err)
 
         return {"qpos": qpos, "qvel": qvel}
+
+    def log_costs(self):
+        return super().log_costs()

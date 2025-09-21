@@ -8,6 +8,7 @@ import numpy as np
 import jax.numpy as jnp
 import mujoco
 from mujoco import mjx
+from hydrax import ROOT
 from hydrax.task_base import Task
 from hydrax.alg_base import SamplingBasedController
 
@@ -72,8 +73,8 @@ class Logger:
         """Log data for a single simulation step.
         
         Args:
-            mj_data: MuJoCo data object
-            mjx_data: MJX data object for JAX computations
+            mj_model: MuJoCo model object
+            mj_data: MuJoCo data object 
             controller: The controller instance
             task: The task instance
             control: Current control inputs
@@ -150,21 +151,10 @@ class Logger:
         try:
             # Get list of function names to call
             # Get dictionary of function names to lambda functions
-            log_functions_dict = task.log_costs()
+            log_functions_dict = task.log_data(mjx_data, control)
             
-            # log total cost
-            result = task.running_cost(mjx_data, control) + task.terminal_cost(mjx_data)
-            metrics["total_cost"] = np.array(result)
-            
-            for metric_name, func in log_functions_dict.items():
-                try:
-                    if callable(func):
-                        result = func(mjx_data, control)
-                        metrics[metric_name] = np.array(result)
-                    else:
-                        raise Exception(f"Warning: {metric_name} is not a callable function or the returned results is not a saclar")
-                except Exception as e:
-                    raise Exception(f"Warning: Error executing metric '{metric_name}': {e}") 
+            for metric_name, value in log_functions_dict.items():
+                metrics[metric_name] = np.array(value)
         except Exception as e:
             raise Exception(f"Warning: Error logging task metrics: {e}")        
         return metrics
@@ -272,12 +262,19 @@ class Logger:
 class LogReader:
     """Reader for analyzing logged simulation data."""
     
-    def __init__(self, experiment_path: str):
+    def __init__(self, experiment_path: str = None):
         """Initialize the log reader.
         
         Args:
             experiment_path: Path to the experiment directory or CSV file
         """
+        if experiment_path is None:
+            # Find the latest experiment
+            experiment_path = self._find_latest_experiment(ROOT + "/logs")
+            if experiment_path is None:
+                raise FileNotFoundError(f"No experiments found in {log_dir}")
+            print(f"Auto-selected latest experiment: {experiment_path}")
+        
         if experiment_path.endswith('.csv'):
             # Direct path to CSV file
             self.csv_path = experiment_path
@@ -297,6 +294,35 @@ class LogReader:
         self._data = None
         self._metadata = None
         self._load_data()
+        
+    def _find_latest_experiment(self, log_dir: str) -> Optional[str]:
+        """Find the most recent experiment directory based on modification time.
+        
+        Args:
+            log_dir: Directory to search for experiments
+            
+        Returns:
+            Path to the latest experiment directory, or None if none found
+        """
+        if not os.path.exists(log_dir):
+            return None
+        
+        experiments = []
+        for item in os.listdir(log_dir):
+            exp_path = os.path.join(log_dir, item)
+            if os.path.isdir(exp_path):
+                csv_path = os.path.join(exp_path, "simulation_log.csv")
+                if os.path.exists(csv_path):
+                    # Get modification time of the CSV file
+                    mtime = os.path.getmtime(csv_path)
+                    experiments.append((mtime, exp_path))
+        
+        if not experiments:
+            return None
+        
+        # Sort by modification time (newest first) and return the latest
+        experiments.sort(key=lambda x: x[0], reverse=True)
+        return experiments[0][1]
     
     def _load_data(self):
         """Load the CSV data and metadata."""

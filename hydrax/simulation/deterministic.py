@@ -12,6 +12,7 @@ from mujoco import mjx
 from hydrax.alg_base import SamplingBasedController
 from hydrax import ROOT
 from hydrax.utils.video import VideoRecorder
+from hydrax.utils.logger import Logger
 
 """
 Tools for deterministic (synchronous) simulation, with the simulator and
@@ -33,6 +34,11 @@ def run_interactive(  # noqa: PLR0912, PLR0915
     reference: np.ndarray = None,
     reference_fps: float = 30.0,
     record_video: bool = False,
+    enable_logging: bool = False,
+    log_frequency : int = 1,
+    save_frequency : int = 100,
+    log_dir: str = "logs",
+    experiment_name: str = None,
 ) -> None:
     """Run an interactive simulation with the MPC controller.
 
@@ -60,6 +66,11 @@ def run_interactive(  # noqa: PLR0912, PLR0915
         reference: The reference trajectory (qs) to visualize.
         reference_fps: The frame rate of the reference trajectory.
         record_video: Whether to record a video of the simulation.
+        enable_logging: Whether to enable logging of simulation data.
+        log_frequency: Frequency (in simulation steps) to log data.
+        save_frequency: Frequency (in logged steps) to save data to disk.
+        log_dir: Relative path of directory from ROOT dir to save logs.
+        experiment_name: Name of the experiment (auto-generated if None).
     """
     # Report the planning horizon in seconds for debugging
     print(
@@ -132,6 +143,15 @@ def run_interactive(  # noqa: PLR0912, PLR0915
         if not recorder.start():
             record_video = False
         renderer = mujoco.Renderer(mj_model, height=height, width=width)
+
+    logger = None
+    if enable_logging:
+        logger = Logger(
+            log_dir=os.path.join(ROOT, log_dir),
+            experiment_name=experiment_name,
+            log_frequency=log_frequency,
+            save_frequency=save_frequency,
+        )
 
     # Start the simulation
     with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
@@ -232,6 +252,15 @@ def run_interactive(  # noqa: PLR0912, PLR0915
                     renderer.update_scene(mj_data, viewer.cam)
                     frame = renderer.render()
                     recorder.add_frame(frame.tobytes())
+                    
+                if logger is not None and i == 0: # log each time control is applied
+                    logger.log_step(mj_model,
+                                    mj_data, 
+                                    controller, 
+                                    controller.task, 
+                                    jnp.array(us[i]), 
+                                    policy_params, 
+                                    plan_time)
 
             # Try to run in roughly realtime
             elapsed = time.time() - start_time
@@ -251,3 +280,7 @@ def run_interactive(  # noqa: PLR0912, PLR0915
     # Close the video recorder if recording was enabled
     if record_video and recorder is not None:
         recorder.stop()
+
+    if logger is not None:
+        logger.finalize()
+        print(f"Simulation data logged to: {logger.experiment_dir}")

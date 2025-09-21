@@ -8,6 +8,7 @@ from mujoco import mjx
 from hydrax import ROOT
 from hydrax.task_base import Task
 
+from mujoco.mjx._src.math import quat_inv
 
 class QuadrupedStandup(Task):
     """Standup task for the Go2."""
@@ -24,9 +25,16 @@ class QuadrupedStandup(Task):
         self.orientation_sensor_id = mj_model.sensor("imu_quat").id
         self.velocity_sensor_id = mj_model.sensor("frame_vel_global").id
         self.torso_id = mj_model.site("imu").id
+        # Get foot site IDs
+        self.fr_foot_id = self.mj_model.site("FR_grf_sensor").id
+        self.fl_foot_id = self.mj_model.site("FL_grf_sensor").id 
+        self.rl_foot_id = self.mj_model.site("RL_grf_sensor").id
+        self.rr_foot_id = self.mj_model.site("RR_grf_sensor").id
 
         # Set the target height
         self.target_height = 0.25
+        self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s
+        self.target_angular_velocity = jnp.array([0.0])  # rad/s
 
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -40,7 +48,55 @@ class QuadrupedStandup(Task):
         sensor_adr = self.model.sensor_adr[self.orientation_sensor_id]
         quat = state.sensordata[sensor_adr : sensor_adr + 4]
         upright = jnp.array([0.0, 0.0, 1.0])
-        return mjx._src.math.rotate(upright, quat)
+        return mjx._src.math.rotate(upright, quat_inv(quat))
+    
+    def _get_foot_positions_intersection(self, state: mjx.Data) -> jax.Array:
+        """Get the intersection point of lines formed by diagonal foot pairs (FR-RL and FL-RR)."""
+        # Get foot positions (only x, y coordinates)
+        fr_pos = state.site_xpos[self.fr_foot_id, :2]  # Front Right
+        fl_pos = state.site_xpos[self.fl_foot_id, :2]  # Front Left
+        rl_pos = state.site_xpos[self.rl_foot_id, :2]  # Rear Left
+        rr_pos = state.site_xpos[self.rr_foot_id, :2]  # Rear Right
+        
+        # Simple geometric center (centroid of the quadrilateral)
+        support_center = (fr_pos + fl_pos + rl_pos + rr_pos) / 4.0
+        
+        return support_center
+
+    def _get_foot_positions_z(self, state: mjx.Data) -> jax.Array:
+        """Get the z-coordinates of all four feet."""
+        fr_z = state.site_xpos[self.fr_foot_id, 2]  # Front Right
+        fl_z = state.site_xpos[self.fl_foot_id, 2]  # Front Left
+        rl_z = state.site_xpos[self.rl_foot_id, 2]  # Rear Left
+        rr_z = state.site_xpos[self.rr_foot_id, 2]  # Rear Right
+        
+        return jnp.array([fr_z, fl_z, rl_z, rr_z])
+
+    def _quat_to_yaw(self, quat: jax.Array) -> jax.Array:
+        """Convert a quaternion to a yaw angle."""
+        # Quaternion components
+        w, x, y, z = quat
+        # Yaw calculation
+        yaw = jnp.arctan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+        return yaw
+
+    def _get_torso_yaw(self, state: mjx.Data) -> jax.Array:
+        """Get the yaw angle of the torso."""
+        sensor_adr = self.model.sensor_adr[self.orientation_sensor_id]
+        quat = state.sensordata[sensor_adr : sensor_adr + 4]
+        return self._quat_to_yaw(quat)
+    
+    def _get_torso_linear_velocity_xy(self, state: mjx.Data) -> jax.Array:
+        """Get the xy linear velocity of the torso"""
+        sensor_adr = self.model.sensor_adr[self.velocity_sensor_id]
+        vel = state.sensordata[sensor_adr : sensor_adr + 3]
+        return vel[:2]  # xy-direction velocity
+
+    def _get_torso_angular_velocity_yaw(self, state: mjx.Data) -> jax.Array:
+        """Get the yaw angular velocity of the torso"""
+        sensor_adr = self.model.sensor_adr[self.velocity_sensor_id]
+        vel = state.sensordata[sensor_adr + 3 : sensor_adr + 6]
+        return vel[2]  # yaw angular velocity
 
     def running_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
         """The running cost ℓ(xₜ, uₜ)."""
@@ -52,26 +108,33 @@ class QuadrupedStandup(Task):
             self._get_torso_height(state) - self.target_height
         )
         pos_cost = jnp.sum(jnp.square(state.qpos[0:2] - self.qstand[0:2]))
-        # nominal_cost = jnp.sum(jnp.square(state.qpos[7:] - self.qstand[7:]))
+        # com_cost = jnp.sum(jnp.square(self._get_foot_positions_intersection(state) - state.qpos[0:2]))
+        foot_pos_cost = jnp.sum(jnp.square(self._get_foot_positions_z(state)))  # Penalize feet being off the ground (z > 0)
         
         # Anti-jittering: penalize deviation from standing control
         u_ref = self.qstand[7:]  # Use standing joint angles as control reference
         control_smoothness_cost = jnp.sum(jnp.square(control - u_ref))
-        
-        # jax.debug.print("orientation_cost {}", orientation_cost)
-        # jax.debug.print("height_cost {}", height_cost)
-        # jax.debug.print("nominal_cost {}", nominal_cost)
-        # return 10.0 * orientation_cost + 10.0 * height_cost + 10 * pos_cost +  0.2 * nominal_cost #roughly works
-        # return 10.0 * orientation_cost + 10.0 * height_cost + 13 * pos_cost +  0.25 * nominal_cost #roguhly works for 0.25m tracking
-        # return 10.0 * orientation_cost + 10.0 * height_cost + 10 * pos_cost + 1.0 * control_smoothness_cost # works roughly for horizon 0.4 terminal cost 1.2 times
-        return 10.0 * orientation_cost + 10.0 * height_cost + 10.0 * pos_cost + 1.0 * control_smoothness_cost
-        # return 10.0 * orientation_cost + 8.0 * height_cost + 10 * pos_cost +  0.2 * nominal_cost
-        # return 1.0 * orientation_cost + 1000.0 * height_cost
-        # return nominal_cost
+        control_cost = jnp.sum(jnp.square(control))
+        linear_velocity_cost = jnp.sum(jnp.square(self._get_torso_linear_velocity_xy(state) - self.target_linear_velocity))  # target forward velocity 0.5 m/s
+        angular_velocity_cost = jnp.sum(jnp.square(self._get_torso_angular_velocity_yaw(state) - self.target_angular_velocity))  # target yaw angular velocity 0 rad/s
+        yaw_cost = jnp.square(self._get_torso_yaw(state))
+
+        return (10.0 * orientation_cost + 
+                10.0 * height_cost + 
+                10.0 * pos_cost + 
+                1.0 * control_smoothness_cost) #works for position control
+        # return (0.5 * orientation_cost + 
+        #         0.3 * yaw_cost +
+        #         1.0 * height_cost + 
+        #         0.1 * foot_pos_cost + 
+        #         1.0 * linear_velocity_cost +
+        #         1.0 * angular_velocity_cost +
+        #         0 * control_cost) # + 0.5 * control_smoothness_cost# 40 for orientation with + 0.5 * control_smoothness_cost
+
 
     def terminal_cost(self, state: mjx.Data) -> jax.Array:
         """The terminal cost ϕ(x_T)."""
-        return 1.2*self.running_cost(state, jnp.zeros(self.model.nu)) # 1.2
+        return 1.2*self.running_cost(state, jnp.zeros(self.model.nu)) # 1.2 for position control
 
     def domain_randomize_model(self, rng: jax.Array) -> Dict[str, jax.Array]:
         """Randomize the friction parameters."""
@@ -94,3 +157,6 @@ class QuadrupedStandup(Task):
         qvel = data.qvel.at[0:6].set(data.qvel[0:6] + v_err)
 
         return {"qpos": qpos, "qvel": qvel}
+
+    def log_data(self):
+        return super().log_costs()

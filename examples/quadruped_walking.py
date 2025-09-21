@@ -1,11 +1,12 @@
 import argparse
 
 import mujoco
+import jax.numpy as jnp
 
 from hydrax.algs import MPPI, DIAL
 from hydrax.simulation.asynchronous import run_interactive as run_async
 from hydrax.simulation.deterministic import run_interactive
-from hydrax.tasks.quadruped_standup import QuadrupedStandup
+from hydrax.tasks.quadruped_walking import QuadrupedWalking
 
 """
 Run an interactive simulation of the quadrupedal standup task.
@@ -27,9 +28,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Define the task (cost and dynamics)
-    task = QuadrupedStandup()
+    task = QuadrupedWalking()
 
-    # work for position control
+    # Set up the controller - OPTIMIZED FOR REALTIME
     # ctrl = MPPI(
     #     task,
     #     num_samples=2048,       
@@ -43,30 +44,16 @@ if __name__ == "__main__":
     ctrl = DIAL(
         task,
         num_samples=2048,
-        noise_level=0.2,
-        beta_opt_iter=0.01, # 0.01
-        beta_horizon=1, # 1
+        noise_level=0.05, # 1.0 for original 
+        beta_opt_iter=0.1, # 0.01, 0.5 for original
+        beta_horizon=0.9, # 1, 0.9 for original
         # temperature=0.001,
-        temperature=0.1, # 0.1
+        temperature=0.06, # 0.1, 0.06 for original
         plan_horizon=0.4,
         spline_type="zero",
         num_knots=4,
         iterations=2,
     )
-    # torque control
-    # ctrl = DIAL(
-    #     task,
-    #     num_samples=2048,
-    #     noise_level=5.0,
-    #     beta_opt_iter=0.01, # 0.01
-    #     beta_horizon=1, # 1
-    #     # temperature=0.001,
-    #     temperature=0.005, # 0.1
-    #     plan_horizon=0.4,
-    #     spline_type="zero",
-    #     num_knots=4,
-    #     iterations=2,
-    # )
     
     
     # Define the model used for simulation - OPTIMIZED FOR REALTIME
@@ -74,8 +61,8 @@ if __name__ == "__main__":
     mj_model.opt.timestep = 0.01      # ← Increased from 0.01 (2x speedup)
     # mj_model.opt.iterations = 1       # ← Keep minimal
     # mj_model.opt.ls_iterations = 3    # ← Reduced for speed
-    # mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
-    mj_model.opt.o_solimp = [0.8, 0.8, 0.01, 0.5, 2]
+    mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
+    # mj_model.opt.o_solimp = [0.8, 0.8, 0.01, 0.5, 2]
     mj_model.opt.enableflags = mujoco.mjtEnableBit.mjENBL_OVERRIDE
 
     # Set the initial state so the robot falls and needs to stand back up
@@ -83,6 +70,8 @@ if __name__ == "__main__":
     mj_data.qpos[:] = mj_model.keyframe("stand").qpos
     # mj_data.qpos[3:7] = [0.0, 1.0, 0.0, 0.0] 
     mj_data.qpos[3:7] = [1.0, 0.0, 0.0, 0.0] 
+    
+    initial_knots = jnp.tile(task.qstand[7:], (ctrl.num_knots, 1))
     
     # Run the interactive simulation
     if args.asynchronous:
@@ -103,6 +92,8 @@ if __name__ == "__main__":
             ctrl,
             mj_model,
             mj_data,
-            frequency=50,      
+            frequency=50,
+            initial_knots=initial_knots,      
             show_traces=False,
+            enable_logging=False,
         )
