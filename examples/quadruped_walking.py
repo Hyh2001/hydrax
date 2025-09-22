@@ -30,37 +30,48 @@ if __name__ == "__main__":
     # Define the task (cost and dynamics)
     task = QuadrupedWalking()
 
-    # Set up the controller - OPTIMIZED FOR REALTIME
+    # roughly works
     # ctrl = MPPI(
     #     task,
     #     num_samples=2048,       
-    #     noise_level=0.1,     # Reduced noise level
-    #     temperature=1.0,     # Increased temperature for stability  
+    #     noise_level=0.07,     
+    #     temperature=0.01,     
     #     num_randomizations=1, 
-    #     plan_horizon=0.5,     
+    #     plan_horizon=0.4,     
     #     spline_type="zero",
     #     num_knots=4,         
     # )
-    ctrl = DIAL(
+    ctrl = MPPI(
         task,
-        num_samples=2048,
-        noise_level=0.05, # 1.0 for original 
-        beta_opt_iter=0.1, # 0.01, 0.5 for original
-        beta_horizon=0.9, # 1, 0.9 for original
-        # temperature=0.001,
-        temperature=0.06, # 0.1, 0.06 for original
-        plan_horizon=0.4,
+        num_samples=2048,       
+        noise_level=0.03,     
+        temperature=0.07,     
+        num_randomizations=1, 
+        plan_horizon=0.4,     
         spline_type="zero",
-        num_knots=4,
-        iterations=2,
+        num_knots=4,         
     )
+    # DIAL MPC original
+    # ctrl = DIAL(
+    #     task,
+    #     num_samples=2048,
+    #     noise_level=1.0, # 1.0 for original 
+    #     beta_opt_iter=0.5, # 0.01, 0.5 for original
+    #     beta_horizon=0.9, # 1, 0.9 for original
+    #     # temperature=0.001,
+    #     temperature=0.06, # 0.1, 0.06 for original
+    #     plan_horizon=0.4,
+    #     spline_type="zero",
+    #     num_knots=4,
+    #     iterations=2,
+    # )
     
     
     # Define the model used for simulation - OPTIMIZED FOR REALTIME
     mj_model = task.mj_model
-    mj_model.opt.timestep = 0.01      # ← Increased from 0.01 (2x speedup)
-    # mj_model.opt.iterations = 1       # ← Keep minimal
-    # mj_model.opt.ls_iterations = 3    # ← Reduced for speed
+    mj_model.opt.timestep = 0.001   # 0.01   
+    # mj_model.opt.iterations = 1       
+    mj_model.opt.ls_iterations = 3   
     mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
     # mj_model.opt.o_solimp = [0.8, 0.8, 0.01, 0.5, 2]
     mj_model.opt.enableflags = mujoco.mjtEnableBit.mjENBL_OVERRIDE
@@ -95,5 +106,5 @@ if __name__ == "__main__":
             frequency=50,
             initial_knots=initial_knots,      
             show_traces=False,
-            enable_logging=False,
+            enable_logging=True,
         )
