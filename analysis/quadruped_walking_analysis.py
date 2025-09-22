@@ -1,7 +1,7 @@
 from hydrax.utils.logger import LogReader
 from hydrax import ROOT
 
-reader = LogReader(ROOT + "/logs/simulation_20250921_182712")
+reader = LogReader(ROOT + "/logs/simulation_20250922_171152")
 
 # Get basic info
 reader.print_info()
