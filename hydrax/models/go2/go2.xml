@@ -23,10 +23,12 @@
       <default class="hip">
         <joint axis="0 1 0"/>
         <default class="front_hip">
-          <joint range="-1.5708 3.4907"/>
+          <joint range="-1.047 4.189"/>
+          <!-- <joint range="-1.5708 3.4907"/> -->
         </default>
         <default class="back_hip">
-          <joint range="-0.5236 4.5379"/>
+          <joint range="-1.047 4.189"/>
+          <!-- <joint range="-0.5236 4.5379"/> -->
         </default>
       </default>
       <default class="knee">
@@ -219,7 +221,7 @@
             <geom size="0.007 0.08" pos="0.01 0 -0.1" quat="1 0 0 0"
               class="collision" />
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" />
-            <body name="RR_foot" pos="-0.002 0 -0.213">
+            <body name="RR_foot" pos="0 0 -0.213">
               <geom class="foot" pos="-0.000 0 0" name="RR_foot_collision" />
               <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
               <site name="RR_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>
@@ -312,6 +314,7 @@
     <framepos name="frame_pos" objtype="site" objname="imu" />
     <velocimeter name="frame_vel" site="imu"/>
     <framelinvel name="frame_vel_global" objtype="site" objname="imu"/>
+    <frameangvel name="frame_angvel_global" objtype="site" objname="imu"/>
     <!--keep the relative order between these four sensors-->
     <force name="FR_grf" site="FR_grf_sensor"/>
     <force name="FL_grf" site="FL_grf_sensor"/>
@@ -329,7 +332,7 @@
       ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" /> -->
     <!-- <key name="stand" qpos="0 0 0.35 1 0 0 0 0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5"
       ctrl="0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5" /> -->
-    <key name="stand" qpos="0 0 0.28 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+    <key name="stand" qpos="0 0 0.29 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
             qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
             ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
   </keyframe>
