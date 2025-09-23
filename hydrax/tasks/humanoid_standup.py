@@ -80,5 +80,5 @@ class HumanoidStandup(Task):
 
         return {"qpos": qpos, "qvel": qvel}
 
-    def log_costs(self):
-        return super().log_costs()
+    def log_data(self):
+        return super().log_data()

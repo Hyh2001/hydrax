@@ -10,6 +10,8 @@
     <numeric data="15" name="max_geom_pairs" />
   </custom>
 
+  <size nuserdata="16" />
+
   <default>
     <geom condim="3" solimp="0.0 0.95 0.01" />
     <default class="go2">
@@ -40,7 +42,7 @@
       <default class="collision">
         <geom group="3" type="capsule" friction="0.4" margin="0.001"/>
         <default class="foot">
-          <geom type="sphere" size="0.022" priority="1" condim="6" friction="0.6"/>
+          <geom type="sphere" size="0.022" priority="1" condim="6" friction="0.8"/> <!-- friction 0.6 -->
         </default>
       </default>
     </default>

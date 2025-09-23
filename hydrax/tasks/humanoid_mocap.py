@@ -226,3 +226,6 @@ class HumanoidMocap(Task):
         qvel = data.qvel.at[0:6].set(data.qvel[0:6] + v_err)
 
         return {"qpos": qpos, "qvel": qvel}
+
+    def log_data(self):
+        return super().log_data()   

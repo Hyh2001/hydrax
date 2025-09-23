@@ -194,10 +194,12 @@ def run_interactive(  # noqa: PLR0912, PLR0915
                 time=mj_data.time,
             )
 
+            # mjx_data = controller.task.update_userdata(mjx_data)  # update userdata
             # Do a replanning step
             plan_start = time.time()
             policy_params, rollouts = jit_optimize(mjx_data, policy_params)
             plan_time = time.time() - plan_start
+
 
             # Visualize the rollouts
             if show_traces:

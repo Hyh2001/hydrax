@@ -135,6 +135,7 @@ class Task(ABC):
         """
         return {}
 
+    # helping utilities
     @abstractmethod
     def log_data(self) -> Dict[str, jax.Array]:
         """Return a dict with data names and data values to log.
@@ -146,3 +147,15 @@ class Task(ABC):
             A dict with cost names and lambda functions to log.
         """
         return {}
+    
+    # @abstractmethod
+    # def update_userdata(self, data: mjx.Data) -> mjx.Data:
+    #     """Update the user data fields in the simulation data.
+
+    #     This method is called at each simulation step to update mjx.Data userdata field 
+    #     to store data that are cost related.  
+
+    #     Args:
+    #         data: The current simulation data.
+    #     """
+    #     return data
