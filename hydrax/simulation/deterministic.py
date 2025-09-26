@@ -36,7 +36,7 @@ def run_interactive(  # noqa: PLR0912, PLR0915
     record_video: bool = False,
     enable_logging: bool = False,
     log_frequency : int = 1,
-    save_frequency : int = 100,
+    save_frequency : int = 50,
     log_dir: str = "logs",
     experiment_name: str = None,
 ) -> None:

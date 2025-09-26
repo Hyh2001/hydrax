@@ -16,9 +16,12 @@
     <geom condim="3" solimp="0.0 0.95 0.01" />
     <default class="go2">
       <site rgba="1 0 0 1" size="0.01" group="5" />
+      <!-- torque -->
       <!-- <joint damping="0.65" armature="0.01" frictionloss="0.05" /> -->
-      <joint damping="0.65" armature="1.0" frictionloss="0.05" />
-      <position kp="30" dampratio="0.5"/>
+      <!-- position -->
+      <joint damping="0.65" armature="1" frictionloss="0.05" />
+      <position kp="500" dampratio="1" inheritrange="1"/>
+      <!-- <position kp="30" dampratio="0.5"/> -->
       <default class="abduction">
         <joint axis="1 0 0" range="-1.0472 1.0472"/>
       </default>
@@ -232,6 +235,8 @@
         </body>
       </body>
     </body>
+
+    <camera name="tracking_camera" pos="0.5 -0.5 0.5" quat="0.707 0 0.707 0" mode="track" target="base_link" />
   </worldbody>
 
   <actuator>
@@ -247,18 +252,18 @@
     <position class="abduction" name="RR_hip" joint="RR_hip_joint" />
     <position class="hip" name="RR_thigh" joint="RR_thigh_joint" />
     <position class="knee" name="RR_calf" joint="RR_calf_joint" />
-    <!-- <motor class="abduction" name="FR_hip" joint="FR_hip_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="FR_thigh" joint="FR_thigh_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="FR_calf" joint="FR_calf_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="abduction" name="FL_hip" joint="FL_hip_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="FL_thigh" joint="FL_thigh_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="FL_calf" joint="FL_calf_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="abduction" name="RR_hip" joint="RR_hip_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="RR_thigh" joint="RR_thigh_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="RR_calf" joint="RR_calf_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="abduction" name="RL_hip" joint="RL_hip_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="RL_thigh" joint="RL_thigh_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="RL_calf" joint="RL_calf_joint" gear="1" ctrllimited="true" ctrlrange="-23.7 23.7"/> -->
+    <!-- <motor class="abduction" name="FR_hip" joint="FR_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="hip" name="FR_thigh" joint="FR_thigh_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="knee" name="FR_calf" joint="FR_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="abduction" name="FL_hip" joint="FL_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="hip" name="FL_thigh" joint="FL_thigh_joint"  ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="knee" name="FL_calf" joint="FL_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="abduction" name="RR_hip" joint="RR_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="hip" name="RR_thigh" joint="RR_thigh_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="knee" name="RR_calf" joint="RR_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="abduction" name="RL_hip" joint="RL_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="hip" name="RL_thigh" joint="RL_thigh_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
+    <motor class="knee" name="RL_calf" joint="RL_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/> -->
   </actuator>
 
   <sensor>
@@ -322,6 +327,10 @@
     <force name="FL_grf" site="FL_grf_sensor"/>
     <force name="RR_grf" site="RR_grf_sensor"/>
     <force name="RL_grf" site="RL_grf_sensor"/>
+    <framelinvel name="FR_foot_linvel" objname="FR_grf_sensor" objtype="site"/>
+    <framelinvel name="FL_foot_linvel" objname="FL_grf_sensor" objtype="site"/>
+    <framelinvel name="RR_foot_linvel" objname="RR_grf_sensor" objtype="site"/>
+    <framelinvel name="RL_foot_linvel" objname="RL_grf_sensor" objtype="site"/>
     <framequat name="FR_foot_quat" objname="FR_grf_sensor" objtype="site"/>
     <framequat name="FL_foot_quat" objname="FL_grf_sensor" objtype="site"/>
     <framequat name="RR_foot_quat" objname="RR_grf_sensor" objtype="site"/>

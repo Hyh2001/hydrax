@@ -32,11 +32,13 @@ class QuadrupedWalking(Task):
         self.velocity_sensor_id = mj_model.sensor("frame_vel_global").id
         self.angular_velocity_id = mj_model.sensor("frame_angvel_global").id
         self.torso_id = mj_model.site("imu").id
-        # print(f"velocity_sensor_id: {self.velocity_sensor_id}")
-        # print(f"torso_id: {self.torso_id}")
+        self.FL_foot_vel_sensor_id = mj_model.sensor("FL_foot_linvel").id
+        self.FR_foot_vel_sensor_id = mj_model.sensor("FR_foot_linvel").id
+        self.RL_foot_vel_sensor_id = mj_model.sensor("RL_foot_linvel").id
+        self.RR_foot_vel_sensor_id = mj_model.sensor("RR_foot_linvel").id
         
         # Set the target height
-        self.target_height = 0.29
+        self.target_height = 0.27
         
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -81,14 +83,18 @@ class QuadrupedWalking(Task):
         # self.last_phases = jnp.zeros(4) #0.02  # m, foot radius
         
         # cost weights
-        self.cost_weights = {'orientation': 50,
-                        'height': 1000,
-                        'yaw': 20.0,
+        self.cost_weights = {'orientation': 10,
+                        'height': 100,
+                        'yaw': 0.0,
                         'linear_velocity': 0.0,
                         'z_linear_velocity': 0.0,
                         'angular_velocity': 0.0,
-                        'gait': 0.3 }
-                        
+                        'gait': 0.5, 
+                        'gait_xy': 1.0,
+                        'gait_z': 2.0,
+                        'foot_slip': 5.0,
+                        }
+        self._raibert_heuristic_feedback_gain = 0.01
         
     def _calculate_foot_offset_xy(self) -> jax.Array:
         # Create a temporary data structure with standing configuration
@@ -187,6 +193,19 @@ class QuadrupedWalking(Task):
         """Get the x, y, z coordinates of all four feet."""
         feet_pos = state.site_xpos[self._feet_site_id, :3]  # x, y, z coordinates of feet
         return feet_pos
+    
+    def _get_foot_velocities(self, state: mjx.Data) -> jax.Array:
+        """Get the 3D linear velocities of all four feet from velocity sensors."""
+        # Read velocity for each foot separately
+        FL_vel = state.sensordata[self.model.sensor_adr[self.FL_foot_vel_sensor_id]:self.model.sensor_adr[self.FL_foot_vel_sensor_id] + 3]
+        FR_vel = state.sensordata[self.model.sensor_adr[self.FR_foot_vel_sensor_id]:self.model.sensor_adr[self.FR_foot_vel_sensor_id] + 3]
+        RL_vel = state.sensordata[self.model.sensor_adr[self.RL_foot_vel_sensor_id]:self.model.sensor_adr[self.RL_foot_vel_sensor_id] + 3]
+        RR_vel = state.sensordata[self.model.sensor_adr[self.RR_foot_vel_sensor_id]:self.model.sensor_adr[self.RR_foot_vel_sensor_id] + 3]
+        
+        # Stack velocities into a single array
+        foot_vels = jnp.stack([FL_vel, FR_vel, RL_vel, RR_vel])  # Shape: (4, 3)
+        
+        return foot_vels
     
     def _get_hip_positions(self, state: mjx.Data) -> jax.Array:
         """Get the x, y, z coordinates of all four hips."""
@@ -301,11 +320,14 @@ class QuadrupedWalking(Task):
         
         # Compute desired touchdown positions using Raibert heuristic
         velocity_offset = torso_vel_yaw_frame[:2] * stepping_time / 2.0  # (2,)
-        feedback = 0.01 * (torso_vel_yaw_frame[:2] - self.target_linear_velocity) # (2,)
+        feedback = self._raibert_heuristic_feedback_gain * (torso_vel_yaw_frame[:2] - self.target_linear_velocity) # (2,)
+        self.foot_offset_xy_yaw_frame = jax.vmap(mjx._src.math.rotate, in_axes=(0, None))(
+            jnp.concatenate([self.foot_offset_xy, jnp.zeros((4, 1))], axis=1), yaw_quat_inv
+        )[:, :2]  
         touchdown_pos_yaw_xy = (hip_pos_yaw_frame[:, :2] + 
                                 velocity_offset[None, :] + 
                                 feedback[None, :] + 
-                                self.foot_offset_xy)# (4, 2)
+                                self.foot_offset_xy_yaw_frame)# (4, 2)
         
         # Transform touchdown XY back to world frame
         touchdown_pos_yaw_frame = jnp.concatenate([
@@ -395,7 +417,7 @@ class QuadrupedWalking(Task):
             stance_position = jnp.array([
                 touchdown[0],  # X: stay at touchdown position during stance
                 touchdown[1],  # Y: stay at touchdown position during stance  
-                0  # Z: foot radius above ground during stance
+                0  # Z: foot radius on ground during stance
             ])
             
             final_pos = jnp.where(is_swing, swing_position, stance_position)
@@ -431,9 +453,22 @@ class QuadrupedWalking(Task):
         feet_error = feet_target - self._get_foot_positions(state)  # (4, 3)
         xy_error = feet_error[:, :2]/0.05
         z_error = feet_error[:, 2]/0.05
-        gait_cost = jnp.sum(xy_error**2) + 10*jnp.sum(z_error**2)
+        gait_cost = self.cost_weights['gait_xy'] * jnp.sum(xy_error**2) + self.cost_weights['gait_z'] * jnp.sum(z_error**2)
         # gait_cost = jnp.sum(((feet_target - self._get_foot_positions(state)) / 0.05) ** 2)
         
+        # Foot slipping cost (penalize XY velocity of stance feet)
+        foot_vels = self._get_foot_velocities(state)  # (4, 3)
+        duty_ratio, cadence, _ = self._gait_params[self.gait]
+        phases = self._gait_phase[self.gait]
+        # Calculate current phase and swing flag for each foot
+        current_phase = (state.time * cadence + phases) % 1.0
+        is_swing = (current_phase > duty_ratio / 2.0) & (current_phase < (1.0 - duty_ratio / 2.0))
+        stance_mask = ~is_swing  # Stance feet: is_swing == False
+
+        # Penalize XY velocity of stance feet
+        stance_vels = jnp.where(stance_mask[:, None], foot_vels[:, :2], jnp.zeros_like(foot_vels[:, :2]))
+        foot_slip_cost = jnp.sum(jnp.square(stance_vels))  # Penalize XY slip
+
         # Gait cost (only z positions)
         # duty_ratio, cadence, amplitude = self._gait_params[self.gait]
         # phases = self._gait_phase[self.gait]
@@ -447,6 +482,7 @@ class QuadrupedWalking(Task):
                 self.cost_weights['linear_velocity'] * linear_velocity_cost + # 20.0
                 self.cost_weights['z_linear_velocity'] * z_linear_velocity_cost +
                 self.cost_weights['angular_velocity'] * angular_velocity_cost + # 10.0
+                self.cost_weights['foot_slip'] * foot_slip_cost +
                 self.cost_weights['gait'] * gait_cost # 0.3 for z-only, 0.5 roughly walks two step, 1.0 for raibert
         )
 
@@ -492,10 +528,23 @@ class QuadrupedWalking(Task):
         feet_error = step_des - self._get_foot_positions(state)  # (4, 3)
         xy_error = feet_error[:, :2]/0.05
         z_error = feet_error[:, 2]/0.05
-        gait_cost = jnp.sum(xy_error**2) + 10*jnp.sum(z_error**2)
+        gait_cost = self.cost_weights['gait_xy'] * jnp.sum(xy_error**2) + self.cost_weights['gait_z']*jnp.sum(z_error**2)
         data_dict["gait_cost"] = self.cost_weights['gait'] * gait_cost
         # data_dict["gait_cost"] = jnp.sum(((self._get_foot_step(*self._gait_params[self.gait], self._gait_phase[self.gait], state.time) + 0.022 - self._get_foot_positions(state)[:,2]) / 0.05) ** 2)
         data_dict["yaw_cost"] = self.cost_weights['yaw'] * self._get_yaw_cost(state)
+        # Foot slipping cost (penalize XY velocity of stance feet)
+        foot_vels = self._get_foot_velocities(state)  # (4, 3)
+        duty_ratio, cadence, _ = self._gait_params[self.gait]
+        phases = self._gait_phase[self.gait]
+        # Calculate current phase and swing flag for each foot
+        current_phase = (state.time * cadence + phases) % 1.0
+        is_swing = (current_phase > duty_ratio / 2.0) & (current_phase < (1.0 - duty_ratio / 2.0))
+        stance_mask = ~is_swing  # Stance feet: is_swing == False
+        # Penalize XY velocity of stance feet
+        stance_vels = jnp.where(stance_mask[:, None], foot_vels[:, :2], jnp.zeros_like(foot_vels[:, :2]))
+        foot_slip_cost = jnp.sum(jnp.square(stance_vels))  # Penalize XY slip
+        data_dict["foot_slip_cost"] = self.cost_weights['foot_slip'] * foot_slip_cost
+
         
         data_dict["torso_linear_vel_x_base"] = self._get_torso_linear_velocity_xy_base(state)[0]
         data_dict["torso_linear_vel_y_base"] = self._get_torso_linear_velocity_xy_base(state)[1]

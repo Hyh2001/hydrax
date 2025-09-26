@@ -42,16 +42,30 @@ if __name__ == "__main__":
     #     spline_type="zero",
     #     num_knots=4,         
     # )
+    # position
     ctrl = MPPI(
         task,
         num_samples=2048,       
-        noise_level=0.4,  # 0.1, 0.03
-        temperature=0.5,  # 1.0, 0.07   
+        noise_level=0.1,  # 0.4, 0.1, 0.03
+        temperature=0.1,  # 2.0, 1.0, 1.0, 0.07 proportional to cost level, cost gain 1 -> temperature 0.1 
         num_randomizations=1, 
-        plan_horizon=0.4,     
-        spline_type="zero",
+        plan_horizon=0.6,     
+        spline_type="zero",  # zero
         num_knots=4,         
     )
+    # torque
+    # ctrl = MPPI(
+    #     task,
+    #     num_samples=2048,       
+    #     noise_level=1.0,  # 0.4, 0.1, 0.03
+    #     temperature=10,  # 2.0, 1.0, 1.0, 0.07 proportional to cost level, cost gain 1 -> temperature 0.1 
+    #     num_randomizations=1, 
+    #     plan_horizon=0.6,     
+    #     spline_type="zero",
+    #     num_knots=4,         
+    # )
+    
+    
     # DIAL MPC original
     # ctrl = DIAL(
     #     task,
@@ -59,7 +73,6 @@ if __name__ == "__main__":
     #     noise_level=1.0, # 1.0 for original 
     #     beta_opt_iter=0.5, # 0.01, 0.5 for original
     #     beta_horizon=0.9, # 1, 0.9 for original
-    #     # temperature=0.001,
     #     temperature=0.06, # 0.1, 0.06 for original
     #     plan_horizon=0.4,
     #     spline_type="zero",
@@ -108,4 +121,5 @@ if __name__ == "__main__":
             initial_knots=initial_knots,      
             show_traces=False,
             enable_logging=True,
+            record_video=True,
         )
