@@ -38,7 +38,7 @@ class QuadrupedWalking(Task):
         self.RR_foot_vel_sensor_id = mj_model.sensor("RR_foot_linvel").id
         
         # Set the target height
-        self.target_height = 0.27
+        self.target_height = 0.29
         
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -83,7 +83,7 @@ class QuadrupedWalking(Task):
         # self.last_phases = jnp.zeros(4) #0.02  # m, foot radius
         
         # cost weights
-        self.cost_weights = {'orientation': 10,
+        self.cost_weights = {'orientation': 50,
                         'height': 100,
                         'yaw': 0.0,
                         'linear_velocity': 0.0,
