@@ -554,25 +554,25 @@ class LogReader:
     #                           ['pos', 'vel', 'height', 'orientation', 'angle'])]
     #     return self.get_multiple_series(state_columns)
     
-    # def get_statistics(self, column: str) -> Dict[str, float]:
-    #     """Get basic statistics for a column.
+    def get_statistics(self, column: str) -> Dict[str, float]:
+        """Get basic statistics for a column.
         
-    #     Args:
-    #         column: Column name
+        Args:
+            column: Column name
             
-    #     Returns:
-    #         Dictionary with mean, std, min, max, etc.
-    #     """
-    #     _, values = self.get_time_series(column)
+        Returns:
+            Dictionary with mean, std, min, max, etc.
+        """
+        _, values = self.get_time_series(column)
         
-    #     return {
-    #         'mean': float(np.mean(values)),
-    #         'std': float(np.std(values)),
-    #         'min': float(np.min(values)),
-    #         'max': float(np.max(values)),
-    #         'median': float(np.median(values)),
-    #         'count': len(values),
-    #     }
+        return {
+            'mean': float(np.mean(values)),
+            'std': float(np.std(values)),
+            'min': float(np.min(values)),
+            'max': float(np.max(values)),
+            'median': float(np.median(values)),
+            'count': len(values),
+        }
     
     # def get_summary_statistics(self) -> Dict[str, Dict[str, float]]:
     #     """Get statistics for all numeric columns."""

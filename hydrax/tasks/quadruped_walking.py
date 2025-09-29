@@ -21,7 +21,7 @@ class QuadrupedWalking(Task):
         mj_model = mujoco.MjModel.from_xml_path(ROOT + "/models/go2/flat_ground.xml")
         super().__init__(
             mj_model,
-            trace_sites=["imu", 
+            trace_sites=["base", 
                          "FL_grf_sensor", "FR_grf_sensor", "RL_grf_sensor", "RR_grf_sensor", 
                          "FL_hip_site", "FR_hip_site", "RL_hip_site", "RR_hip_site"],
         )
@@ -31,14 +31,22 @@ class QuadrupedWalking(Task):
         self.orientation_sensor_id = mj_model.sensor("imu_quat").id
         self.velocity_sensor_id = mj_model.sensor("frame_vel_global").id
         self.angular_velocity_id = mj_model.sensor("frame_angvel_global").id
-        self.torso_id = mj_model.site("imu").id
+        self.torso_id = mj_model.site("base").id
         self.FL_foot_vel_sensor_id = mj_model.sensor("FL_foot_linvel").id
         self.FR_foot_vel_sensor_id = mj_model.sensor("FR_foot_linvel").id
         self.RL_foot_vel_sensor_id = mj_model.sensor("RL_foot_linvel").id
         self.RR_foot_vel_sensor_id = mj_model.sensor("RR_foot_linvel").id
+        self.FL_foot_force_sensor_id = mj_model.sensor("FL_grf").id
+        self.FR_foot_force_sensor_id = mj_model.sensor("FR_grf").id
+        self.RL_foot_force_sensor_id = mj_model.sensor("RL_grf").id
+        self.RR_foot_force_sensor_id = mj_model.sensor("RR_grf").id
+        self.FL_foot_orient_sensor_id = mj_model.sensor("FL_foot_quat").id
+        self.FR_foot_orient_sensor_id = mj_model.sensor("FR_foot_quat").id
+        self.RL_foot_orient_sensor_id = mj_model.sensor("RL_foot_quat").id
+        self.RR_foot_orient_sensor_id = mj_model.sensor("RR_foot_quat").id
         
         # Set the target height
-        self.target_height = 0.29
+        self.target_height = 0.25
         
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -74,27 +82,76 @@ class QuadrupedWalking(Task):
             mj_model.site("RR_hip_site").id,
         ])
         # self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s in the local frame
-        self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s in the local frame
+        self.target_linear_velocity = jnp.array([0.3, 0.0])  # m/s in the local frame
         self.target_angular_velocity = jnp.array([0.0])  # rad/s in the local frame
 
         # get the foot offset from hip from qpos
         self.foot_offset_xy = self._calculate_foot_offset_xy()
-        # self.touchdown_positions = jnp.zeros((4,3))
-        # self.last_phases = jnp.zeros(4) #0.02  # m, foot radius
         
         # cost weights
-        self.cost_weights = {'orientation': 50,
-                        'height': 100,
-                        'yaw': 0.0,
-                        'linear_velocity': 0.0,
-                        'z_linear_velocity': 0.0,
-                        'angular_velocity': 0.0,
-                        'gait': 0.5, 
-                        'gait_xy': 1.0,
-                        'gait_z': 2.0,
-                        'foot_slip': 5.0,
-                        }
-        self._raibert_heuristic_feedback_gain = 0.01
+        # trot in place worked
+        # self.cost_weights = {'orientation': 100,
+        #         'height': 100,
+        #         'yaw': 0.0,
+        #         'linear_velocity': 0.0,
+        #         'z_linear_velocity': 0.0,
+        #         'angular_velocity': 0.0,
+        #         'xy_angular_velocity': 0.0,
+        #         'gait': 0.5, 
+        #         'gait_xy': 1.0,
+        #         'gait_z': 2.0,
+        #         'foot_slip': 5.0,
+        #         }
+        # trot forward
+        self.cost_weights = {'orientation': 100,
+                'height': 100,
+                'yaw': 0.0,
+                'linear_velocity': 10.0,
+                'z_linear_velocity': 10.0,
+                'angular_velocity': 10.0,
+                'xy_angular_velocity': 0.0,
+                'gait': 0.5, 
+                'gait_xy': 1.0,
+                'gait_z': 4.0,
+                'foot_slip': 10.0,
+                }
+        # self.cost_weights = {'orientation': 50,
+        #         'height': 100,
+        #         'yaw': 10.0,
+        #         'linear_velocity': 5.0,
+        #         'z_linear_velocity': 5.0,
+        #         'angular_velocity': 5.0,
+        #         'xy_angular_velocity': 1.0,
+        #         'gait': 0.5, 
+        #         'gait_xy': 0.1,
+        #         'gait_z': 5.0,
+        #         'foot_slip': 20.0,
+        #         }
+        # try high velocity tracking rewards
+        # self.cost_weights = {'orientation': 20,
+        #             'height': 20.0, # 200
+        #             'yaw': 0.0,
+        #             'linear_velocity': 50.0,
+        #             'z_linear_velocity': 50.0, # 10.0
+        #             'xy_angular_velocity': 50.0,
+        #             'angular_velocity': 20.0,
+        #             'gait': 10.0, # 1.0 
+        #             'gait_xy': 0.0, # 0.1
+        #             'gait_z': 3.0,
+        #             'foot_slip': 10.0,
+        #             }
+        # self.cost_weights = {'orientation': 200, # 200
+        #                 'height': 500, # 200
+        #                 'yaw': 0.0,
+        #                 'linear_velocity': 5.0, # 10.0
+        #                 'z_linear_velocity': 10.0,
+        #                 'angular_velocity': 5.0, # 10.0
+        #                 'gait': 0.5, 
+        #                 'gait_xy': 1.0,
+        #                 'gait_z': 5.0,
+        #                 'foot_slip': 100.0, # 10.0
+        #                 }
+        self._raibert_heuristic_feedback_gain = 0.1  # 0.2
         
     def _calculate_foot_offset_xy(self) -> jax.Array:
         # Create a temporary data structure with standing configuration
@@ -113,7 +170,7 @@ class QuadrupedWalking(Task):
         
         # Since this is calculated from standing pose (yaw=0), these are already in "yaw-aligned" frame
         return hip_to_foot_world[:, :2]  # (4, 2)
-        
+    
     def _get_torso_height(self, state: mjx.Data) -> jax.Array:
         """Get the height of the torso above the ground."""
         return state.site_xpos[self.torso_id, 2]
@@ -180,14 +237,13 @@ class QuadrupedWalking(Task):
         
         # Rotate to yaw-aligned base frame
         vel = mjx._src.math.rotate(vel, yaw_quat_inv)  # to the yaw-aligned base frame
-        return vel[:2]  # xy-direction velocity in yaw-aligned base frame
+        return vel[:2]  # xy-direction velocity in yaw rotated world-aligned base frame
 
     def _get_torso_angular_velocity_yaw_base(self, state: mjx.Data) -> jax.Array:
         """Get the yaw angular velocity of the torso"""
         vel = self._get_torso_angular_velocity(state)
         vel = mjx._src.math.rotate(vel, mjx._src.math.quat_inv(state.xquat[self.torso_id]))  # to the base frame
-        return vel[2]
-        # return jnp.clip(vel[2], -2.0, 2.0)  # yaw angular velocity in base frame
+        return vel
     
     def _get_foot_positions(self, state: mjx.Data) -> jax.Array:
         """Get the x, y, z coordinates of all four feet."""
@@ -320,7 +376,7 @@ class QuadrupedWalking(Task):
         
         # Compute desired touchdown positions using Raibert heuristic
         velocity_offset = torso_vel_yaw_frame[:2] * stepping_time / 2.0  # (2,)
-        feedback = self._raibert_heuristic_feedback_gain * (torso_vel_yaw_frame[:2] - self.target_linear_velocity) # (2,)
+        feedback = self._raibert_heuristic_feedback_gain * (self.target_linear_velocity - torso_vel_yaw_frame[:2]) # (2,)
         self.foot_offset_xy_yaw_frame = jax.vmap(mjx._src.math.rotate, in_axes=(0, None))(
             jnp.concatenate([self.foot_offset_xy, jnp.zeros((4, 1))], axis=1), yaw_quat_inv
         )[:, :2]  
@@ -432,6 +488,52 @@ class QuadrupedWalking(Task):
         
         return trajectory
     
+    def _get_force_world(self, state: mjx.Data) -> jax.Array:
+        """Get the 3D ground reaction forces on all four feet from force sensors."""
+        # Read force for each foot separately
+        FL_force = state.sensordata[self.model.sensor_adr[self.FL_foot_force_sensor_id]:self.model.sensor_adr[self.FL_foot_force_sensor_id] + 3]
+        FR_force = state.sensordata[self.model.sensor_adr[self.FR_foot_force_sensor_id]:self.model.sensor_adr[self.FR_foot_force_sensor_id] + 3]
+        RL_force = state.sensordata[self.model.sensor_adr[self.RL_foot_force_sensor_id]:self.model.sensor_adr[self.RL_foot_force_sensor_id] + 3]
+        RR_force = state.sensordata[self.model.sensor_adr[self.RR_foot_force_sensor_id]:self.model.sensor_adr[self.RR_foot_force_sensor_id] + 3]
+        
+        # Read orientation quaternions for each foot
+        FL_quat = state.sensordata[self.model.sensor_adr[self.FL_foot_orient_sensor_id]:self.model.sensor_adr[self.FL_foot_orient_sensor_id] + 4]
+        FR_quat = state.sensordata[self.model.sensor_adr[self.FR_foot_orient_sensor_id]:self.model.sensor_adr[self.FR_foot_orient_sensor_id] + 4]
+        RL_quat = state.sensordata[self.model.sensor_adr[self.RL_foot_orient_sensor_id]:self.model.sensor_adr[self.RL_foot_orient_sensor_id] + 4]
+        RR_quat = state.sensordata[self.model.sensor_adr[self.RR_foot_orient_sensor_id]:self.model.sensor_adr[self.RR_foot_orient_sensor_id] + 4]
+        
+        # Compute quaternion inverses
+        FL_quat_inv = quat_inv(FL_quat)
+        FR_quat_inv = quat_inv(FR_quat)
+        RL_quat_inv = quat_inv(RL_quat)
+        RR_quat_inv = quat_inv(RR_quat)
+        
+        # Rotate forces into the desired frame using quaternion inverse
+        FL_force_rot = mjx._src.math.rotate(FL_force, FL_quat_inv)
+        FR_force_rot = mjx._src.math.rotate(FR_force, FR_quat_inv)
+        RL_force_rot = mjx._src.math.rotate(RL_force, RL_quat_inv)
+        RR_force_rot = mjx._src.math.rotate(RR_force, RR_quat_inv)
+        
+        # Stack rotated forces into a single array
+        foot_forces = jnp.stack([FL_force_rot, FR_force_rot, RL_force_rot, RR_force_rot])  # Shape: (4, 3)
+        
+        return foot_forces
+    
+    def _get_pain_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
+        foot_forces_z_world = self._get_force_world(state)[:,2] # (4, 3) 
+        body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
+        gravity = jnp.abs(self.model.opt.gravity[2])  # Gravity magnitude (z-axis)
+        body_weight = body_mass * gravity  # Total body weight
+        
+        # Calculate threshold per foot
+        threshold_per_foot = 0.7 * body_weight
+        excess_force = jnp.maximum(foot_forces_z_world - threshold_per_foot, 0.0)  # Shape: (4,)
+        pain_cost = jnp.sum(excess_force ** 2)  # Sum of squared excess forces
+
+        # joint limit cost
+        
+        return pain_cost  # Shape: (4,)
+    
     def running_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
         """The running cost ℓ(xₜ, uₜ)."""
         orientation_cost = jnp.sum(
@@ -445,7 +547,8 @@ class QuadrupedWalking(Task):
         linear_velocity_cost = jnp.sum(jnp.square(self._get_torso_linear_velocity_xy_yaw_base(state) - self.target_linear_velocity))  # in yaw-aligned base frame
         z_linear_velocity_cost = jnp.square(self._get_torso_linear_velocity(state)[2])  # target vertical velocity 0 m/s
         # angular_velocity_cost = jnp.sum(jnp.square(self._get_torso_angular_velocity_yaw_base(state) - self.target_angular_velocity))  # in base frame
-        angular_velocity_cost = jnp.sum(jnp.square(self._get_torso_angular_velocity(state)[2] - self.target_angular_velocity))  # in world frame
+        angular_velocity_cost = jnp.sum(jnp.square(self._get_torso_angular_velocity_yaw_base(state)[2] - self.target_angular_velocity))  # in world frame
+        xy_angular_velocity_cost = jnp.sum(jnp.square(self._get_torso_angular_velocity_yaw_base(state)[:2]))  # in world frame
         yaw_cost = self._get_yaw_cost(state)
         
         # Gait cost (foot trajectory tracking)
@@ -482,13 +585,23 @@ class QuadrupedWalking(Task):
                 self.cost_weights['linear_velocity'] * linear_velocity_cost + # 20.0
                 self.cost_weights['z_linear_velocity'] * z_linear_velocity_cost +
                 self.cost_weights['angular_velocity'] * angular_velocity_cost + # 10.0
+                self.cost_weights['xy_angular_velocity'] * xy_angular_velocity_cost + 
                 self.cost_weights['foot_slip'] * foot_slip_cost +
                 self.cost_weights['gait'] * gait_cost # 0.3 for z-only, 0.5 roughly walks two step, 1.0 for raibert
         )
 
     def terminal_cost(self, state: mjx.Data) -> jax.Array:
         """The terminal cost ϕ(x_T)."""
-        return 1.0*self.running_cost(state, jnp.zeros(self.model.nu)) 
+        linear_velocity_cost = jnp.sum(jnp.square(self._get_torso_linear_velocity_xy_yaw_base(state) - self.target_linear_velocity))  # in yaw-aligned base frame
+        angular_velocity_cost = jnp.sum(jnp.square(self._get_torso_angular_velocity_yaw_base(state)[2] - self.target_angular_velocity))  # in world frame
+        height_cost = jnp.square(
+            self._get_torso_height(state) - self.target_height
+        )
+        return (self.cost_weights['height'] * height_cost +
+                self.cost_weights['linear_velocity'] * linear_velocity_cost +
+                self.cost_weights['angular_velocity'] * angular_velocity_cost
+        )
+        # return 1.0*self.running_cost(state, jnp.zeros(self.model.nu)) 
 
     def domain_randomize_model(self, rng: jax.Array) -> Dict[str, jax.Array]:
         """Randomize the friction parameters."""
@@ -524,6 +637,7 @@ class QuadrupedWalking(Task):
         data_dict["linear_velocity_cost"] = self.cost_weights['linear_velocity'] * jnp.sum(jnp.square(self._get_torso_linear_velocity_xy_base(state) - self.target_linear_velocity))
         data_dict["z_linear_velocity_cost"] = self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])
         data_dict["angular_velocity_cost"] = self.cost_weights['angular_velocity'] * jnp.sum(jnp.square(self._get_torso_angular_velocity(state)[2] - self.target_angular_velocity))
+        data_dict["xy_angular_velocity_cost"] = self.cost_weights['xy_angular_velocity'] * jnp.sum(jnp.square(self._get_torso_angular_velocity(state)[:2]))
         step_des = self._get_foot_pos_des(state)  # Desired foot positions (4, 3)
         feet_error = step_des - self._get_foot_positions(state)  # (4, 3)
         xy_error = feet_error[:, :2]/0.05
@@ -546,9 +660,9 @@ class QuadrupedWalking(Task):
         data_dict["foot_slip_cost"] = self.cost_weights['foot_slip'] * foot_slip_cost
 
         
-        data_dict["torso_linear_vel_x_base"] = self._get_torso_linear_velocity_xy_base(state)[0]
-        data_dict["torso_linear_vel_y_base"] = self._get_torso_linear_velocity_xy_base(state)[1]
-        data_dict["torso_angular_vel_yaw_base"] = self._get_torso_angular_velocity_yaw_base(state)
+        data_dict["torso_linear_vel_x_yaw_frame"] = self._get_torso_linear_velocity_xy_yaw_base(state)[0]
+        data_dict["torso_linear_vel_y_yaw_frame"] = self._get_torso_linear_velocity_xy_yaw_base(state)[1]
+        data_dict["torso_angular_vel_yaw_base"] = self._get_torso_angular_velocity_yaw_base(state)[2]
         
         data_dict["torso_height"] = self._get_torso_height(state)
         data_dict["torso_height_des"] = self.target_height
@@ -571,6 +685,10 @@ class QuadrupedWalking(Task):
         data_dict["step_des_FR_x"] = step_des[1,0]
         data_dict["step_des_FR_y"] = step_des[1,1]
         data_dict["step_des_FR_z"] = step_des[1,2]
+        data_dict["touchdown_pos_FL_x"] = self._raibert_heuristic(state)[0,0]
+        data_dict["touchdown_pos_FL_y"] = self._raibert_heuristic(state)[0,1]
+        data_dict["touchdown_pos_FR_x"] = self._raibert_heuristic(state)[1,0]
+        data_dict["touchdown_pos_FR_y"] = self._raibert_heuristic(state)[1,1]
         # data_dict["step_des_FR_z"] = self._get_foot_step(*self._gait_params[self.gait], self._gait_phase[self.gait], state.time)[1]
         # data_dict["step_des_RL_x"] = step_des[2,0]
         # data_dict["step_des_RL_y"] = step_des[2,1]

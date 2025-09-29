@@ -19,7 +19,7 @@
       <!-- torque -->
       <!-- <joint damping="0.65" armature="0.01" frictionloss="0.05" /> -->
       <!-- position -->
-      <joint damping="0.65" armature="1" frictionloss="0.05" />
+      <joint damping="0.0" armature="1" frictionloss="0.00" />
       <position kp="500" dampratio="1" inheritrange="1"/>
       <!-- <position kp="30" dampratio="0.5"/> -->
       <default class="abduction">
@@ -90,6 +90,7 @@
       <geom size="0.06 0.14" pos="-0.02 0 0" class="collision" quat="0.707107 0 0.707107 0" />
       <geom size="0.06 0.03" pos="0.2 0 -0.015" class="collision" />
       <site name="imu" pos="-0.02557 0 0.04232" />
+      <site name="base" pos="0 0 0" />
       <body name="FL_hip" pos="0.1934 0.0465 0">
         <inertial pos="-0.0054 0.00194 -0.000105" quat="0.497014 0.499245 0.505462 0.498237"
           mass="0.678"
@@ -236,7 +237,7 @@
       </body>
     </body>
 
-    <camera name="tracking_camera" pos="0.5 -0.5 0.5" quat="0.707 0 0.707 0" mode="track" target="base_link" />
+    <camera name="tracking_camera" fovy="60" pos="1.0 -0.7 0.5" quat="1 0 0 0" mode="targetbody" target="base_link" />
   </worldbody>
 
   <actuator>
@@ -343,7 +344,7 @@
       ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" /> -->
     <!-- <key name="stand" qpos="0 0 0.35 1 0 0 0 0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5"
       ctrl="0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5 0 0.6 -1.5" /> -->
-    <key name="stand" qpos="0 0 0.29 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+    <key name="stand" qpos="0 0 0.285 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
             qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
             ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
   </keyframe>
