@@ -151,7 +151,7 @@ class QuadrupedWalking(Task):
         #                 'gait_z': 5.0,
         #                 'foot_slip': 100.0, # 10.0
         #                 }
-        self._raibert_heuristic_feedback_gain = 0.1  # 0.2
+        self._raibert_heuristic_feedback_gain = 0.5  # 0.2
         
     def _calculate_foot_offset_xy(self) -> jax.Array:
         # Create a temporary data structure with standing configuration
@@ -520,17 +520,21 @@ class QuadrupedWalking(Task):
         return foot_forces
     
     def _get_pain_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
+        # contact force cost
         foot_forces_z_world = self._get_force_world(state)[:,2] # (4, 3) 
         body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
         gravity = jnp.abs(self.model.opt.gravity[2])  # Gravity magnitude (z-axis)
         body_weight = body_mass * gravity  # Total body weight
-        
         # Calculate threshold per foot
         threshold_per_foot = 0.7 * body_weight
         excess_force = jnp.maximum(foot_forces_z_world - threshold_per_foot, 0.0)  # Shape: (4,)
         pain_cost = jnp.sum(excess_force ** 2)  # Sum of squared excess forces
 
         # joint limit cost
+        lower_violations = jnp.minimum(self.u_min - state.qpos[7:], 0.0)
+        upper_violations = jnp.maximum(state.qpos[7:] - self.u_max, 0.0)
+        joint_limit_cost = jnp.sum(jnp.square(lower_violations) + jnp.square(upper_violations ** 2))
+        pain_cost += joint_limit_cost
         
         return pain_cost  # Shape: (4,)
     
@@ -597,7 +601,11 @@ class QuadrupedWalking(Task):
         height_cost = jnp.square(
             self._get_torso_height(state) - self.target_height
         )
-        return (self.cost_weights['height'] * height_cost +
+        orientation_cost = jnp.sum(
+            jnp.square(self._get_torso_orientation(state)[0:2])
+        )
+        return (self.cost_weights['orientation'] * orientation_cost +
+                self.cost_weights['height'] * height_cost +
                 self.cost_weights['linear_velocity'] * linear_velocity_cost +
                 self.cost_weights['angular_velocity'] * angular_velocity_cost
         )
