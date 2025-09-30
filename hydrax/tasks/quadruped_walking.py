@@ -46,7 +46,7 @@ class QuadrupedWalking(Task):
         self.RR_foot_orient_sensor_id = mj_model.sensor("RR_foot_quat").id
         
         # Set the target height
-        self.target_height = 0.25
+        self.target_height = 0.27
         
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -83,10 +83,12 @@ class QuadrupedWalking(Task):
         ])
         # self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s in the local frame
         self.target_linear_velocity = jnp.array([0.3, 0.0])  # m/s in the local frame
-        self.target_angular_velocity = jnp.array([0.00])  # rad/s in the local frame
+        self.target_angular_velocity = jnp.array([0.0])  # rad/s in the local frame
 
         # get the foot offset from hip from qpos
         self.foot_offset_xy = self._calculate_foot_offset_xy()
+        # print(self.u_max)
+        # print(self.u_min)
         
         # cost weights
         # trot in place worked
@@ -113,9 +115,9 @@ class QuadrupedWalking(Task):
                 'gait': 0.5, 
                 'gait_xy': 1.0,
                 'gait_z': 5.0,
-                'foot_slip': 10.0,
-                'contact_forces': 0.0,
-                'joint_limits': 0.0,
+                'foot_slip': 30.0,
+                'contact_forces': 0, # 0.001
+                'joint_limits': 0, # 100
                 }
         # self.cost_weights = {'orientation': 50,
         #         'height': 100,
@@ -475,7 +477,7 @@ class QuadrupedWalking(Task):
             stance_position = jnp.array([
                 touchdown[0],  # X: stay at touchdown position during stance
                 touchdown[1],  # Y: stay at touchdown position during stance  
-                -0.028  # Z: foot radius on ground during stance
+                -0.02  # Z: foot radius on ground during stance
             ])
             
             final_pos = jnp.where(is_swing, swing_position, stance_position)
@@ -522,7 +524,7 @@ class QuadrupedWalking(Task):
         return foot_forces
     
     def _get_contact_forces_cost(self, state: mjx.Data) -> jax.Array:
-        # contact force cost
+        # contact force cost, penalize vertical forces over 70% of body weight per foot
         foot_forces_z_world = self._get_force_world(state)[:,2] # (4, 3) 
         body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
         gravity = jnp.abs(self.model.opt.gravity[2])  # Gravity magnitude (z-axis)
@@ -535,9 +537,9 @@ class QuadrupedWalking(Task):
         return pain_cost  # Shape: (4,)
     
     def _get_joint_limits_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
-        # joint limit cost
-        lower_violations = jnp.minimum(self.u_min - control, 0.0)
-        upper_violations = jnp.maximum(control - self.u_max, 0.0)
+        # joint limit cost, penalize entering 90% of the joint limits
+        lower_violations = jnp.maximum(0.9 * self.u_min - control, 0.0)
+        upper_violations = jnp.maximum(control - 0.9 * self.u_max, 0.0)
         joint_limit_cost = jnp.sum(jnp.square(lower_violations) + jnp.square(upper_violations ** 2))
         
         return joint_limit_cost  # Shape: (4,)
@@ -575,7 +577,6 @@ class QuadrupedWalking(Task):
         current_phase = (state.time * cadence + phases) % 1.0
         is_swing = (current_phase > duty_ratio / 2.0) & (current_phase < (1.0 - duty_ratio / 2.0))
         stance_mask = ~is_swing  # Stance feet: is_swing == False
-
         # Penalize XY velocity of stance feet
         stance_vels = jnp.where(stance_mask[:, None], foot_vels[:, :2], jnp.zeros_like(foot_vels[:, :2]))
         foot_slip_cost = jnp.sum(jnp.square(stance_vels))  # Penalize XY slip
@@ -675,7 +676,8 @@ class QuadrupedWalking(Task):
         stance_vels = jnp.where(stance_mask[:, None], foot_vels[:, :2], jnp.zeros_like(foot_vels[:, :2]))
         foot_slip_cost = jnp.sum(jnp.square(stance_vels))  # Penalize XY slip
         data_dict["foot_slip_cost"] = self.cost_weights['foot_slip'] * foot_slip_cost
-
+        data_dict["contact_forces_cost"] = self.cost_weights['contact_forces'] * self._get_contact_forces_cost(state)
+        data_dict["joint_limits_cost"] = self.cost_weights['joint_limits'] * self._get_joint_limits_cost(state, control)
         
         data_dict["torso_linear_vel_x_yaw_frame"] = self._get_torso_linear_velocity_xy_yaw_base(state)[0]
         data_dict["torso_linear_vel_y_yaw_frame"] = self._get_torso_linear_velocity_xy_yaw_base(state)[1]
@@ -690,11 +692,6 @@ class QuadrupedWalking(Task):
         data_dict["foot_pos_FR_x"] = self._get_foot_positions(state)[1,0] - self._get_hip_positions(state)[1,0]
         data_dict["foot_pos_FR_y"] = self._get_foot_positions(state)[1,1] - self._get_hip_positions(state)[1,1]
         data_dict["foot_pos_FR_z"] = self._get_foot_positions(state)[1,2]
-        # data_dict["foot_pos_RL_z"] = self._get_foot_positions(state)[2,2]
-        # data_dict["foot_pos_RR_z"] = self._get_foot_positions(state)[3,2]
-        # data_dict["sim_time"] = state.time
-        # data_dict["control_cost"] = jnp.sum(jnp.square(control))
-        # step_des = self._get_foot_pos_des(state)  # Desired foot positions (4, 3)
 
         data_dict["step_des_FL_x"] = step_des[0,0] - self._get_hip_positions(state)[0,0]
         data_dict["step_des_FL_y"] = step_des[0,1] - self._get_hip_positions(state)[0,1]
@@ -706,13 +703,24 @@ class QuadrupedWalking(Task):
         data_dict["touchdown_pos_FL_y"] = self._raibert_heuristic(state)[0,1]
         data_dict["touchdown_pos_FR_x"] = self._raibert_heuristic(state)[1,0]
         data_dict["touchdown_pos_FR_y"] = self._raibert_heuristic(state)[1,1]
-        # data_dict["step_des_FR_z"] = self._get_foot_step(*self._gait_params[self.gait], self._gait_phase[self.gait], state.time)[1]
-        # data_dict["step_des_RL_x"] = step_des[2,0]
-        # data_dict["step_des_RL_y"] = step_des[2,1]
-        # data_dict["step_des_RL_z"] = step_des[2,2]
-        # data_dict["step_des_RR_x"] = step_des[3,0]
-        # data_dict["step_des_RR_y"] = step_des[3,1]
-        # data_dict["step_des_RR_z"] = step_des[3,2]  
+        
+        data_dict["foot_force_FL_z"] = self._get_force_world(state)[0,2]
+        data_dict["foot_force_FR_z"] = self._get_force_world(state)[1,2]
+        
+        data_dict["FR_hip_joint"] = state.qpos[7]
+        data_dict["FR_thigh_joint"] = state.qpos[8]
+        data_dict["FR_calf_joint"] = state.qpos[9]
+        data_dict["FL_hip_joint"] = state.qpos[10]
+        data_dict["FL_thigh_joint"] = state.qpos[11]
+        data_dict["FL_calf_joint"] = state.qpos[12]
+        data_dict["RR_hip_joint"] = state.qpos[13]
+        data_dict["RR_thigh_joint"] = state.qpos[14]
+        data_dict["RR_calf_joint"] = state.qpos[15]
+        data_dict["RL_hip_joint"] = state.qpos[16]
+        data_dict["RL_thigh_joint"] = state.qpos[17]
+        data_dict["RL_calf_joint"] = state.qpos[18]
+         
+
         
         return data_dict
         

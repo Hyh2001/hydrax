@@ -46,8 +46,8 @@ if __name__ == "__main__":
     ctrl = MPPI(
         task,
         num_samples=2048,       
-        noise_level=0.1,  # 0.4, 0.1, 0.03
-        temperature=0.1,  # 2.0, 1.0, 1.0, 0.07 proportional to cost level, cost gain 1 -> temperature 0.1 
+        noise_level=0.1,  # 
+        temperature=0.5,  # 0.1 proportional to cost level, cost gain 1 -> temperature 0.1 
         num_randomizations=1, 
         plan_horizon=0.6,     
         spline_type="zero",  # zero
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # Define the model used for simulation - OPTIMIZED FOR REALTIME
     mj_model = task.mj_model
     mj_model.opt.timestep = 0.01   # 0.01   
-    mj_model.opt.iterations = 10       
+    mj_model.opt.iterations = 10        
     mj_model.opt.ls_iterations = 50   
     mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
     # mj_model.opt.o_solimp = [0.8, 0.8, 0.01, 0.5, 2]
