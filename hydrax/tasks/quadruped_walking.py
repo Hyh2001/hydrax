@@ -65,7 +65,7 @@ class QuadrupedWalking(Task):
             "stand": jnp.array([1.0, 1.0, 0.0]),
             "walk": jnp.array([0.75, 1.0, 0.08]),
             "trot": jnp.array([0.45, 2.0, 0.08]),
-            # "trot": jnp.array([0.45, 2.0, 0.07]),
+            # "trot": jnp.array([0.45, 3.0, 0.05]),
             "canter": jnp.array([0.4, 4.0, 0.06]),
             "gallop": jnp.array([0.3, 3.5, 0.10]),
         }
@@ -83,7 +83,7 @@ class QuadrupedWalking(Task):
         ])
         # self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s in the local frame
         self.target_linear_velocity = jnp.array([0.3, 0.0])  # m/s in the local frame
-        self.target_angular_velocity = jnp.array([0.0])  # rad/s in the local frame
+        self.target_angular_velocity = jnp.array([0.00])  # rad/s in the local frame
 
         # get the foot offset from hip from qpos
         self.foot_offset_xy = self._calculate_foot_offset_xy()
@@ -107,13 +107,15 @@ class QuadrupedWalking(Task):
                 'height': 100,
                 'yaw': 0.0,
                 'linear_velocity': 10.0,
-                'z_linear_velocity': 10.0,
+                'z_linear_velocity': 20.0,
                 'angular_velocity': 10.0,
                 'xy_angular_velocity': 0.0,
                 'gait': 0.5, 
                 'gait_xy': 1.0,
-                'gait_z': 4.0,
+                'gait_z': 5.0,
                 'foot_slip': 10.0,
+                'contact_forces': 0.0,
+                'joint_limits': 0.0,
                 }
         # self.cost_weights = {'orientation': 50,
         #         'height': 100,
@@ -421,7 +423,7 @@ class QuadrupedWalking(Task):
         clipped_angle = jnp.clip(angle, -jnp.pi / 2, jnp.pi / 2)
         step_value = jnp.where(duty_ratio < 1, jnp.cos(clipped_angle), 0)
         step_height_normalized = jnp.where(jnp.abs(step_value) >= 1e-6, jnp.abs(step_value), 0.0)
-        step_height = amplitude * step_height_normalized # add foot geometry radius 0.22
+        step_height = amplitude * step_height_normalized # set the target to -0.05m
         
         return step_height
 
@@ -473,7 +475,7 @@ class QuadrupedWalking(Task):
             stance_position = jnp.array([
                 touchdown[0],  # X: stay at touchdown position during stance
                 touchdown[1],  # Y: stay at touchdown position during stance  
-                0  # Z: foot radius on ground during stance
+                -0.028  # Z: foot radius on ground during stance
             ])
             
             final_pos = jnp.where(is_swing, swing_position, stance_position)
@@ -519,7 +521,7 @@ class QuadrupedWalking(Task):
         
         return foot_forces
     
-    def _get_pain_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
+    def _get_contact_forces_cost(self, state: mjx.Data) -> jax.Array:
         # contact force cost
         foot_forces_z_world = self._get_force_world(state)[:,2] # (4, 3) 
         body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
@@ -530,13 +532,15 @@ class QuadrupedWalking(Task):
         excess_force = jnp.maximum(foot_forces_z_world - threshold_per_foot, 0.0)  # Shape: (4,)
         pain_cost = jnp.sum(excess_force ** 2)  # Sum of squared excess forces
 
-        # joint limit cost
-        lower_violations = jnp.minimum(self.u_min - state.qpos[7:], 0.0)
-        upper_violations = jnp.maximum(state.qpos[7:] - self.u_max, 0.0)
-        joint_limit_cost = jnp.sum(jnp.square(lower_violations) + jnp.square(upper_violations ** 2))
-        pain_cost += joint_limit_cost
-        
         return pain_cost  # Shape: (4,)
+    
+    def _get_joint_limits_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
+        # joint limit cost
+        lower_violations = jnp.minimum(self.u_min - control, 0.0)
+        upper_violations = jnp.maximum(control - self.u_max, 0.0)
+        joint_limit_cost = jnp.sum(jnp.square(lower_violations) + jnp.square(upper_violations ** 2))
+        
+        return joint_limit_cost  # Shape: (4,)
     
     def running_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
         """The running cost ℓ(xₜ, uₜ)."""
@@ -575,6 +579,9 @@ class QuadrupedWalking(Task):
         # Penalize XY velocity of stance feet
         stance_vels = jnp.where(stance_mask[:, None], foot_vels[:, :2], jnp.zeros_like(foot_vels[:, :2]))
         foot_slip_cost = jnp.sum(jnp.square(stance_vels))  # Penalize XY slip
+        
+        contact_forces_cost = self._get_contact_forces_cost(state)
+        joint_limits_cost = self._get_joint_limits_cost(state, control)
 
         # Gait cost (only z positions)
         # duty_ratio, cadence, amplitude = self._gait_params[self.gait]
@@ -591,7 +598,9 @@ class QuadrupedWalking(Task):
                 self.cost_weights['angular_velocity'] * angular_velocity_cost + # 10.0
                 self.cost_weights['xy_angular_velocity'] * xy_angular_velocity_cost + 
                 self.cost_weights['foot_slip'] * foot_slip_cost +
-                self.cost_weights['gait'] * gait_cost # 0.3 for z-only, 0.5 roughly walks two step, 1.0 for raibert
+                self.cost_weights['gait'] * gait_cost +  # 0.3 for z-only, 0.5 roughly walks two step, 1.0 for raibert
+                self.cost_weights['contact_forces'] * contact_forces_cost +
+                self.cost_weights['joint_limits'] * joint_limits_cost
         )
 
     def terminal_cost(self, state: mjx.Data) -> jax.Array:
@@ -675,11 +684,11 @@ class QuadrupedWalking(Task):
         data_dict["torso_height"] = self._get_torso_height(state)
         data_dict["torso_height_des"] = self.target_height
         
-        data_dict["foot_pos_FL_x"] = self._get_foot_positions(state)[0,0]
-        data_dict["foot_pos_FL_y"] = self._get_foot_positions(state)[0,1]
+        data_dict["foot_pos_FL_x"] = self._get_foot_positions(state)[0,0] - self._get_hip_positions(state)[0,0]
+        data_dict["foot_pos_FL_y"] = self._get_foot_positions(state)[0,1] - self._get_hip_positions(state)[0,1]
         data_dict["foot_pos_FL_z"] = self._get_foot_positions(state)[0,2]
-        data_dict["foot_pos_FR_x"] = self._get_foot_positions(state)[1,0]
-        data_dict["foot_pos_FR_y"] = self._get_foot_positions(state)[1,1]
+        data_dict["foot_pos_FR_x"] = self._get_foot_positions(state)[1,0] - self._get_hip_positions(state)[1,0]
+        data_dict["foot_pos_FR_y"] = self._get_foot_positions(state)[1,1] - self._get_hip_positions(state)[1,1]
         data_dict["foot_pos_FR_z"] = self._get_foot_positions(state)[1,2]
         # data_dict["foot_pos_RL_z"] = self._get_foot_positions(state)[2,2]
         # data_dict["foot_pos_RR_z"] = self._get_foot_positions(state)[3,2]
@@ -687,12 +696,12 @@ class QuadrupedWalking(Task):
         # data_dict["control_cost"] = jnp.sum(jnp.square(control))
         # step_des = self._get_foot_pos_des(state)  # Desired foot positions (4, 3)
 
-        data_dict["step_des_FL_x"] = step_des[0,0]
-        data_dict["step_des_FL_y"] = step_des[0,1]
+        data_dict["step_des_FL_x"] = step_des[0,0] - self._get_hip_positions(state)[0,0]
+        data_dict["step_des_FL_y"] = step_des[0,1] - self._get_hip_positions(state)[0,1]
         data_dict["step_des_FL_z"] = step_des[0,2]
-        data_dict["step_des_FR_x"] = step_des[1,0]
-        data_dict["step_des_FR_y"] = step_des[1,1]
-        data_dict["step_des_FR_z"] = step_des[1,2]
+        data_dict["step_des_FR_x"] = step_des[1,0] - self._get_hip_positions(state)[1,0]
+        data_dict["step_des_FR_y"] = step_des[1,1] - self._get_hip_positions(state)[1,1]
+        data_dict["step_des_FR_z"] = step_des[1,2] 
         data_dict["touchdown_pos_FL_x"] = self._raibert_heuristic(state)[0,0]
         data_dict["touchdown_pos_FL_y"] = self._raibert_heuristic(state)[0,1]
         data_dict["touchdown_pos_FR_x"] = self._raibert_heuristic(state)[1,0]
