@@ -208,17 +208,9 @@ class SamplingBasedController(ABC):
         
         # Apply the control sequences, parallelized over both rollouts and
         # domain randomizations.
-        if self.num_randomizations > 1:
-            # With domain randomizations: vmap over rollouts first, then randomizations
-            rollout_vmap = jax.vmap(self.eval_rollouts, in_axes=(None, None, 0, 0))
-            randomization_vmap = jax.vmap(rollout_vmap, in_axes=(self.randomized_axes, 0, None, None))
-            _, rollouts = randomization_vmap(self.model, states, controls, knots)
-        else:
-            # No domain randomizations: just vmap over rollouts
-            rollout_vmap = jax.vmap(self.eval_rollouts, in_axes=(None, None, 0, 0))
-            _, rollouts = rollout_vmap(self.model, states[0], controls, knots)
-            # Add a fake randomization dimension to match expected shape
-            rollouts = jax.tree.map(lambda x: x[None, ...], rollouts)
+        _, rollouts = jax.vmap(
+            self.eval_rollouts, in_axes=(self.randomized_axes, 0, None, None)
+        )(self.model, states, controls, knots)
 
         # Combine the costs from different domain randomizations using the
         # specified risk strategy.
@@ -229,7 +221,7 @@ class SamplingBasedController(ABC):
         return rollouts.replace(
             costs=costs, controls=controls, knots=knots, trace_sites=trace_sites
         )
-
+    @partial(jax.vmap, in_axes=(None, None, None, 0, 0))
     def eval_rollouts(
         self,
         model: mjx.Model,
