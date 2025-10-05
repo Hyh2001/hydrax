@@ -47,7 +47,7 @@ if __name__ == "__main__":
         task,
         num_samples=2048,       
         noise_level=0.1,  # 
-        temperature=0.5,  # 0.1 proportional to cost level, cost gain 1 -> temperature 0.1 
+        temperature=0.5,  # 0.5 proportional to cost level, cost gain 1 -> temperature 0.1 
         num_randomizations=1, 
         plan_horizon=0.6,     
         spline_type="zero",  # zero
