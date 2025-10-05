@@ -53,6 +53,7 @@ class QuadrupedWalking(Task):
         
         # gait
         self.gait = "trot"
+        # self.gait = "canter"
         self._gait_phase = {
             "stand": jnp.zeros(4),
             "walk": jnp.array([0.0, 0.5, 0.75, 0.25]),
@@ -64,8 +65,8 @@ class QuadrupedWalking(Task):
             # duty_ratio, cadence, amplitude
             "stand": jnp.array([1.0, 1.0, 0.0]),
             "walk": jnp.array([0.75, 1.0, 0.08]),
-            "trot": jnp.array([0.45, 2.0, 0.08]),
-            # "trot": jnp.array([0.45, 3.0, 0.05]),
+            # "trot": jnp.array([0.45, 2.0, 0.08]),
+            "trot": jnp.array([0.45, 2.0, 0.1]),
             "canter": jnp.array([0.4, 4.0, 0.06]),
             "gallop": jnp.array([0.3, 3.5, 0.10]),
         }
@@ -87,75 +88,41 @@ class QuadrupedWalking(Task):
 
         # get the foot offset from hip from qpos
         self.foot_offset_xy = self._calculate_foot_offset_xy()
-        # print(self.u_max)
-        # print(self.u_min)
+        # print(self.foot_offset_xy)
         
         # cost weights
-        # trot in place worked
+        # trot with no pain
         # self.cost_weights = {'orientation': 100,
-        #         'height': 100,
+        #         'height': 300, # 100
         #         'yaw': 0.0,
-        #         'linear_velocity': 0.0,
-        #         'z_linear_velocity': 0.0,
-        #         'angular_velocity': 0.0,
+        #         'linear_velocity': 20.0, # 10
+        #         'z_linear_velocity': 20.0,
+        #         'angular_velocity': 10.0,
         #         'xy_angular_velocity': 0.0,
         #         'gait': 0.5, 
         #         'gait_xy': 1.0,
-        #         'gait_z': 2.0,
-        #         'foot_slip': 5.0,
+        #         'gait_z': 10.0,
+        #         'foot_slip': 30.0,
+        #         'contact_forces': 0.0, 
+        #         'joint_limits': 0.0, 
         #         }
-        # trot forward
+        # trot with pain
         self.cost_weights = {'orientation': 100,
-                'height': 100,
+                'height': 300, # 100
                 'yaw': 0.0,
-                'linear_velocity': 10.0,
+                'linear_velocity': 20.0, # 10
                 'z_linear_velocity': 20.0,
                 'angular_velocity': 10.0,
                 'xy_angular_velocity': 0.0,
                 'gait': 0.5, 
                 'gait_xy': 1.0,
-                'gait_z': 5.0,
+                'gait_z': 10.0,
                 'foot_slip': 30.0,
-                'contact_forces': 0, # 0.001
-                'joint_limits': 0, # 100
+                'contact_forces': 0.003, 
+                'joint_limits': 1000.0, 
                 }
-        # self.cost_weights = {'orientation': 50,
-        #         'height': 100,
-        #         'yaw': 10.0,
-        #         'linear_velocity': 5.0,
-        #         'z_linear_velocity': 5.0,
-        #         'angular_velocity': 5.0,
-        #         'xy_angular_velocity': 1.0,
-        #         'gait': 0.5, 
-        #         'gait_xy': 0.1,
-        #         'gait_z': 5.0,
-        #         'foot_slip': 20.0,
-        #         }
-        # try high velocity tracking rewards
-        # self.cost_weights = {'orientation': 20,
-        #             'height': 20.0, # 200
-        #             'yaw': 0.0,
-        #             'linear_velocity': 50.0,
-        #             'z_linear_velocity': 50.0, # 10.0
-        #             'xy_angular_velocity': 50.0,
-        #             'angular_velocity': 20.0,
-        #             'gait': 10.0, # 1.0 
-        #             'gait_xy': 0.0, # 0.1
-        #             'gait_z': 3.0,
-        #             'foot_slip': 10.0,
-        #             }
-        # self.cost_weights = {'orientation': 200, # 200
-        #                 'height': 500, # 200
-        #                 'yaw': 0.0,
-        #                 'linear_velocity': 5.0, # 10.0
-        #                 'z_linear_velocity': 10.0,
-        #                 'angular_velocity': 5.0, # 10.0
-        #                 'gait': 0.5, 
-        #                 'gait_xy': 1.0,
-        #                 'gait_z': 5.0,
-        #                 'foot_slip': 100.0, # 10.0
-        #                 }
-        self._raibert_heuristic_feedback_gain = 0.5  # 0.2
+
+        self._raibert_heuristic_feedback_gain = 0.5  # 0.5
         
     def _calculate_foot_offset_xy(self) -> jax.Array:
         # Create a temporary data structure with standing configuration
@@ -507,16 +474,16 @@ class QuadrupedWalking(Task):
         RR_quat = state.sensordata[self.model.sensor_adr[self.RR_foot_orient_sensor_id]:self.model.sensor_adr[self.RR_foot_orient_sensor_id] + 4]
         
         # Compute quaternion inverses
-        FL_quat_inv = quat_inv(FL_quat)
-        FR_quat_inv = quat_inv(FR_quat)
-        RL_quat_inv = quat_inv(RL_quat)
-        RR_quat_inv = quat_inv(RR_quat)
+        # FL_quat_inv = quat_inv(FL_quat)
+        # FR_quat_inv = quat_inv(FR_quat)
+        # RL_quat_inv = quat_inv(RL_quat)
+        # RR_quat_inv = quat_inv(RR_quat)
         
         # Rotate forces into the desired frame using quaternion inverse
-        FL_force_rot = mjx._src.math.rotate(FL_force, FL_quat_inv)
-        FR_force_rot = mjx._src.math.rotate(FR_force, FR_quat_inv)
-        RL_force_rot = mjx._src.math.rotate(RL_force, RL_quat_inv)
-        RR_force_rot = mjx._src.math.rotate(RR_force, RR_quat_inv)
+        FL_force_rot = mjx._src.math.rotate(-FL_force, FL_quat)
+        FR_force_rot = mjx._src.math.rotate(-FR_force, FR_quat)
+        RL_force_rot = mjx._src.math.rotate(-RL_force, RL_quat)
+        RR_force_rot = mjx._src.math.rotate(-RR_force, RR_quat)
         
         # Stack rotated forces into a single array
         foot_forces = jnp.stack([FL_force_rot, FR_force_rot, RL_force_rot, RR_force_rot])  # Shape: (4, 3)
@@ -530,7 +497,7 @@ class QuadrupedWalking(Task):
         gravity = jnp.abs(self.model.opt.gravity[2])  # Gravity magnitude (z-axis)
         body_weight = body_mass * gravity  # Total body weight
         # Calculate threshold per foot
-        threshold_per_foot = 0.7 * body_weight
+        threshold_per_foot = 0.8 * body_weight
         excess_force = jnp.maximum(foot_forces_z_world - threshold_per_foot, 0.0)  # Shape: (4,)
         pain_cost = jnp.sum(excess_force ** 2)  # Sum of squared excess forces
 
@@ -538,8 +505,8 @@ class QuadrupedWalking(Task):
     
     def _get_joint_limits_cost(self, state: mjx.Data, control: jax.Array) -> jax.Array:
         # joint limit cost, penalize entering 90% of the joint limits
-        lower_violations = jnp.maximum(0.9 * self.u_min - control, 0.0)
-        upper_violations = jnp.maximum(control - 0.9 * self.u_max, 0.0)
+        lower_violations = jnp.maximum(0.8 * self.u_min - control, 0.0)
+        upper_violations = jnp.maximum(control - 0.8 * self.u_max, 0.0)
         joint_limit_cost = jnp.sum(jnp.square(lower_violations) + jnp.square(upper_violations ** 2))
         
         return joint_limit_cost  # Shape: (4,)
@@ -617,7 +584,8 @@ class QuadrupedWalking(Task):
         return (self.cost_weights['orientation'] * orientation_cost +
                 self.cost_weights['height'] * height_cost +
                 self.cost_weights['linear_velocity'] * linear_velocity_cost +
-                self.cost_weights['angular_velocity'] * angular_velocity_cost
+                self.cost_weights['angular_velocity'] * angular_velocity_cost  
+                # self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])  # see whether will ease the problem of gradually sinking base
         )
         # return 1.0*self.running_cost(state, jnp.zeros(self.model.nu)) 
 
@@ -699,28 +667,38 @@ class QuadrupedWalking(Task):
         data_dict["step_des_FR_x"] = step_des[1,0] - self._get_hip_positions(state)[1,0]
         data_dict["step_des_FR_y"] = step_des[1,1] - self._get_hip_positions(state)[1,1]
         data_dict["step_des_FR_z"] = step_des[1,2] 
-        data_dict["touchdown_pos_FL_x"] = self._raibert_heuristic(state)[0,0]
-        data_dict["touchdown_pos_FL_y"] = self._raibert_heuristic(state)[0,1]
-        data_dict["touchdown_pos_FR_x"] = self._raibert_heuristic(state)[1,0]
-        data_dict["touchdown_pos_FR_y"] = self._raibert_heuristic(state)[1,1]
+        data_dict["touchdown_pos_FL_x"] = self._raibert_heuristic(state)[0,0] - self._get_hip_positions(state)[0,0]
+        data_dict["touchdown_pos_FL_y"] = self._raibert_heuristic(state)[0,1] - self._get_hip_positions(state)[0,1]
+        data_dict["touchdown_pos_FR_x"] = self._raibert_heuristic(state)[1,0] - self._get_hip_positions(state)[1,0]
+        data_dict["touchdown_pos_FR_y"] = self._raibert_heuristic(state)[1,1] - self._get_hip_positions(state)[1,1]
         
         data_dict["foot_force_FL_z"] = self._get_force_world(state)[0,2]
         data_dict["foot_force_FR_z"] = self._get_force_world(state)[1,2]
         
-        data_dict["FR_hip_joint"] = state.qpos[7]
-        data_dict["FR_thigh_joint"] = state.qpos[8]
-        data_dict["FR_calf_joint"] = state.qpos[9]
-        data_dict["FL_hip_joint"] = state.qpos[10]
-        data_dict["FL_thigh_joint"] = state.qpos[11]
-        data_dict["FL_calf_joint"] = state.qpos[12]
-        data_dict["RR_hip_joint"] = state.qpos[13]
-        data_dict["RR_thigh_joint"] = state.qpos[14]
-        data_dict["RR_calf_joint"] = state.qpos[15]
-        data_dict["RL_hip_joint"] = state.qpos[16]
-        data_dict["RL_thigh_joint"] = state.qpos[17]
-        data_dict["RL_calf_joint"] = state.qpos[18]
+        data_dict["FL_hip_joint"] = state.qpos[7]
+        data_dict["FL_thigh_joint"] = state.qpos[8]
+        data_dict["FL_calf_joint"] = state.qpos[9]
+        data_dict["FR_hip_joint"] = state.qpos[10]
+        data_dict["FR_thigh_joint"] = state.qpos[11]
+        data_dict["FR_calf_joint"] = state.qpos[12]
+        data_dict["RL_hip_joint"] = state.qpos[13]
+        data_dict["RL_thigh_joint"] = state.qpos[14]
+        data_dict["RL_calf_joint"] = state.qpos[15]
+        data_dict["RR_hip_joint"] = state.qpos[16]
+        data_dict["RR_thigh_joint"] = state.qpos[17]
+        data_dict["RR_calf_joint"] = state.qpos[18]
+        
+        # pain related 
+        # body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
+        # gravity = jnp.abs(self.model.opt.gravity[2])  # Gravity magnitude (z-axis)
+        # body_weight = body_mass * gravity  # Total body weight
+        # data_dict["body_weight"] = body_weight
+        
+        data_dict['FR_foot_force_z'] = self._get_force_world(state)[1,2]
+        data_dict['FL_foot_force_z'] = self._get_force_world(state)[0,2]
+        data_dict['RR_foot_force_z'] = self._get_force_world(state)[3,2]
+        data_dict['RL_foot_force_z'] = self._get_force_world(state)[2,2]
          
-
         
         return data_dict
         
