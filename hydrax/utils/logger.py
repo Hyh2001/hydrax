@@ -423,6 +423,32 @@ class LogReader:
         cost_columns = self.get_cost_column_names()
         return self.get_multiple_series(cost_columns)
     
+    def get_series_data(self, columns: str) -> np.ndarray:
+        """Get raw data array for specified columns.
+        
+        Args:
+            columns: Column name or list of column names
+        """
+        if isinstance(columns, str):
+            columns = [columns]
+            
+        result = {}
+        times = None
+        
+        for i, col in enumerate(columns):
+            if col not in self.get_column_names():
+                raise KeyError(f"Column '{col}' not found")
+            try:
+                col_times, values = self.get_time_series(col)
+                if times is None: 
+                    times = col_times
+                
+                result[col] = values
+            except KeyError:
+                raise KeyError(f"Error raised when saving '{col}' data.")
+        
+        return times, result
+    
     def plot_time_series(self, columns: List[str], save_path: str = None):
         """Plot time series for given columns.
         
