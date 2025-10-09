@@ -206,7 +206,7 @@ class Logger:
         with open(metadata_path, 'w') as f:
             json.dump(self.metadata, f, indent=2)
         
-        print(f"Saved {len(self.data_buffer)} log entries to {csv_path}")
+        # print(f"Saved {len(self.data_buffer)} log entries to {csv_path}")
         self.data_buffer.clear()
     
     def finalize(self):
