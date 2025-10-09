@@ -53,7 +53,7 @@ class QuadrupedWalking(Task):
         
         # gait
         self.gait = "trot"
-        # self.gait = "canter"
+        # self.gait = "gallop"
         self._gait_phase = {
             "stand": jnp.zeros(4),
             "walk": jnp.array([0.0, 0.5, 0.75, 0.25]),
@@ -92,21 +92,6 @@ class QuadrupedWalking(Task):
         
         # cost weights
         # trot with no pain
-        # self.cost_weights = {'orientation': 100,
-        #         'height': 300, # 100
-        #         'yaw': 0.0,
-        #         'linear_velocity': 20.0, # 10
-        #         'z_linear_velocity': 20.0,
-        #         'angular_velocity': 10.0,
-        #         'xy_angular_velocity': 0.0,
-        #         'gait': 0.5, 
-        #         'gait_xy': 1.0,
-        #         'gait_z': 10.0,
-        #         'foot_slip': 30.0,
-        #         'contact_forces': 0.0, 
-        #         'joint_limits': 0.0, 
-        #         }
-        # trot with pain
         self.cost_weights = {'orientation': 100,
                 'height': 300, # 100
                 'yaw': 0.0,
@@ -115,12 +100,42 @@ class QuadrupedWalking(Task):
                 'angular_velocity': 10.0,
                 'xy_angular_velocity': 0.0,
                 'gait': 0.5, 
-                'gait_xy': 1.0,
+                'gait_xy': 2.0,
                 'gait_z': 10.0,
                 'foot_slip': 30.0,
-                'contact_forces': 0.003, 
-                'joint_limits': 1000.0, 
+                'contact_forces': 0.0, 
+                'joint_limits': 0.0, 
                 }
+        # trot with pain
+        # self.cost_weights = {'orientation': 100,
+        #         'height': 300, # 100
+        #         'yaw': 0.0,
+        #         'linear_velocity': 20.0, # 10
+        #         'z_linear_velocity': 20.0,
+        #         'angular_velocity': 10.0,
+        #         'xy_angular_velocity': 0.0,
+        #         'gait': 0.5, 
+        #         'gait_xy': 2.0,
+        #         'gait_z': 10.0,
+        #         'foot_slip': 30.0,
+        #         'contact_forces': 0.003, 
+        #         'joint_limits': 1000.0, 
+        #         }
+        # bounding with no pain
+        # self.cost_weights = {'orientation': 200,
+        #         'height': 300, # 100
+        #         'yaw': 0.0,
+        #         'linear_velocity': 0.0, # 10
+        #         'z_linear_velocity': 0.0,
+        #         'angular_velocity': 0.0,
+        #         'xy_angular_velocity': 0.0,
+        #         'gait': 10.0, 
+        #         'gait_xy': 2.0,
+        #         'gait_z': 10.0,
+        #         'foot_slip': 30.0,
+        #         'contact_forces': 0.0, 
+        #         'joint_limits': 0.0, 
+        #         }
 
         self._raibert_heuristic_feedback_gain = 0.5  # 0.5
         
@@ -698,13 +713,32 @@ class QuadrupedWalking(Task):
         data_dict['FL_foot_force_z'] = self._get_force_world(state)[0,2]
         data_dict['RR_foot_force_z'] = self._get_force_world(state)[3,2]
         data_dict['RL_foot_force_z'] = self._get_force_world(state)[2,2]
-         
+        
+        data_dict["base_force_x"] = state.xfrc_applied[self.torso_id, 0]
+        data_dict["base_force_y"] = state.xfrc_applied[self.torso_id, 1]
+        data_dict["base_force_z"] = state.xfrc_applied[self.torso_id, 2]
         
         return data_dict
         
-    # def update_userdata(self, state):
-    #     # merge the self.touchdown_positions and self.last_phases into userdata
-    #     _, updated_state = self._get_foot_pos_des(state)
-    #     state = state.replace(userdata=updated_state)
+    def post_physics_step(self) -> Dict[str, Dict]:
+        post_dict = {}
+        # post_dict["push_sites"] = {'sites': ["FL_grf_sensor"], # "base" 
+        #                            'max_force': [50, 50, 50], 
+        #                            'time_interval': 0, 
+        #                            'start_time': 0.2} 
         
-    #     return super().update_userdata(state)
+        # post_dict["push_to_limits"] = {
+        #                            'joints': ["FL_calf_joint"],
+        #                            'time_interval': 0,
+        #                            'start_time': 0.2}
+        
+        # post_dict["broken_joints"] = {
+        #                               'joints': ["FL_calf_joint"],
+        #                               'time_interval': 0,
+        #                               'start_time': 0.0}    
+        
+        # post_dict["fix_sites_pos"] = {
+        #                            'sites': ["FL_grf_sensor"],
+        #                            'start_time': 0.4}
+        return post_dict
+        # return super().post_physics_step()
