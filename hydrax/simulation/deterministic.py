@@ -13,6 +13,7 @@ from hydrax.alg_base import SamplingBasedController
 from hydrax import ROOT
 from hydrax.utils.video import VideoRecorder
 from hydrax.utils.logger import Logger
+from hydrax.utils import sim_utils
 
 """
 Tools for deterministic (synchronous) simulation, with the simulator and
@@ -246,6 +247,7 @@ def run_interactive(  # noqa: PLR0912, PLR0915
             # simulate the system between spline replanning steps
             for i in range(sim_steps_per_replan):
                 mj_data.ctrl[:] = np.array(us[i])
+                mj_model, mj_data = sim_utils.post_physics_step(mj_model, mj_data, controller.task)
                 mujoco.mj_step(mj_model, mj_data)
                 viewer.sync()
 

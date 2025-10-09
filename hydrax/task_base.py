@@ -135,8 +135,18 @@ class Task(ABC):
         """
         return {}
 
+    # simulation physics related
+    def post_physics_step(self) -> Dict[str, list]:
+        """ 
+        Custom function to be called after each physics step to apply further modifications
+        to the simulation state, include 
+            1. applying random pushes to the robot ('push_sites' in sim_utils.py)
+            2. pushing joints to their limits ('push_to_limits' in sim_utils.py).
+        """
+        return {}
+    
     # helping utilities
-    @abstractmethod
+    # @abstractmethod
     def log_data(self) -> Dict[str, jax.Array]:
         """Return a dict with data names and data values to log.
 
