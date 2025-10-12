@@ -83,10 +83,10 @@ if __name__ == "__main__":
     
     # Define the model used for simulation - OPTIMIZED FOR REALTIME
     mj_model = task.mj_model
-    mj_model.opt.timestep = 0.001   # 0.01   
-    # mj_model.opt.iterations = 10   # 10     
-    # mj_model.opt.ls_iterations = 50   
-    # mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
+    mj_model.opt.timestep = 0.01   # 0.01   
+    mj_model.opt.iterations = 100   # 10     
+    mj_model.opt.ls_iterations = 50   
+    mj_model.opt.o_solimp = [0.9, 0.95, 0.001, 0.5, 2]
     # mj_model.opt.o_solimp = [0.8, 0.8, 0.01, 0.5, 2]
     mj_model.opt.enableflags = mujoco.mjtEnableBit.mjENBL_OVERRIDE
 

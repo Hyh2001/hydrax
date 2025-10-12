@@ -108,16 +108,31 @@ class QuadrupedWalking(Task):
         #         'contact_forces': 0.0, 
         #         'joint_limits': 0.0, 
         #         }
-        # trot with pain torque control
+        # trot with no pain torque control
+        # self.cost_weights = {'orientation': 100,
+        #         'height': 300, # 100
+        #         'yaw': 0.0,
+        #         'linear_velocity': 100.0, # 10
+        #         'z_linear_velocity': 20.0,
+        #         'angular_velocity': 50.0,
+        #         'xy_angular_velocity': 0.0,
+        #         'gait': 2.0, 
+        #         'gait_xy': 2.0,
+        #         'gait_z': 10.0,
+        #         'foot_slip': 30.0,
+        #         'contact_forces': 0.0, 
+        #         'joint_limits': 0.0, 
+        #         }
+        # standing
         self.cost_weights = {'orientation': 50.0,
                 'height': 200, # 100
                 'yaw': 30.0,
                 'linear_velocity': 100.0, # 100
                 'z_linear_velocity': 10.0,
-                'angular_velocity': 100.0, # 100
+                'angular_velocity': 50.0, # 100
                 'xy_angular_velocity': 0.0,
-                'gait': 1.0, 
-                'gait_xy': 1.0,
+                'gait': 5.0, 
+                'gait_xy': 5.0,
                 'gait_z': 10.0,
                 'foot_slip': 0.0, # 50.0
                 'contact_forces': 0.0, 
