@@ -1,4 +1,5 @@
 <mujoco model="flat terrain">
+  <!-- <include file="go2_test.xml"/> -->
   <include file="go2.xml"/>
   <statistic center="0 0 0.1" extent="0.8"/>
 

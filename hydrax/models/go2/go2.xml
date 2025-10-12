@@ -1,7 +1,7 @@
 <mujoco model="go2">
   <compiler angle="radian" meshdir="assets" autolimits="true" />
 
-  <!-- <option cone="elliptic" impratio="100" /> -->
+  <!-- <option cone="elliptic" impratio="100" cone="pyramidal" impratio="100" /> -->
   <option timestep="0.02" iterations="1" ls_iterations="5">
     <flag eulerdamp="disable" />
   </option>
@@ -10,43 +10,49 @@
     <numeric data="15" name="max_geom_pairs" />
   </custom>
 
-  <size nuserdata="16" />
-
   <default>
-    <geom condim="3" solimp="0.0 0.95 0.01" />
+    <geom condim="1" margin="0.001" friction="0.6"/> <!-- solimp="0.0 0.95 0.01" -->
     <default class="go2">
       <site rgba="1 0 0 1" size="0.01" group="5" />
-      <!-- torque -->
-      <!-- <joint damping="0.65" armature="0.01" frictionloss="0.05" /> -->
-      <!-- position -->
-      <joint damping="0.0" armature="1" frictionloss="0.00" />
-      <position kp="500" dampratio="1" inheritrange="1"/>
-      <!-- <position kp="30" dampratio="0.5"/> -->
+      <!-- general control-->
+      <!-- <joint armature="0.01" frictionloss="0.2" damping="2"/> 
+      <general forcerange="-24 24" biastype="affine" gainprm="50 0 0" biasprm="0 -50 -0.5"/> -->
+      <!-- torque control-->
+      <joint axis="0 1 0" damping="0.65" armature="0.01" />
+
+      <!-- ideal -->
+      <!-- <joint damping="0.0" armature="1.0" frictionloss="0.00" />
+      <position kp="500" dampratio="1" inheritrange="1" forcelimited="true" forcerange="-23.7 23.7"/> -->
       <default class="abduction">
         <joint axis="1 0 0" range="-1.0472 1.0472"/>
+        <!-- <motor ctrlrange="-23.7 23.7"/> -->
       </default>
       <default class="hip">
         <joint axis="0 1 0"/>
         <default class="front_hip">
           <joint range="-1.5708 3.4907"/>
-          <!-- <joint range="-1.5708 3.4907"/> -->
+          <!-- <motor ctrlrange="-23.7 23.7"/> -->
+          <!-- <general ctrlrange="-1.5708 3.4907"/> -->
         </default>
         <default class="back_hip">
           <joint range="-0.5236 4.5379"/>
-          <!-- <joint range="-0.5236 4.5379"/> -->
+          <!-- <motor ctrlrange="-23.7 23.7"/> -->
+          <!-- <general ctrlrange="-0.5236 4.5379"/> -->
         </default>
       </default>
       <default class="knee">
         <joint axis="0 1 0" range="-2.7227 -0.83776"/>
-        <!-- <motor ctrlrange="-45.43 45.43"/> -->
+        <!-- <motor ctrlrange="-45.7 45.7"/> -->
+        <!-- <general ctrlrange="-2.6227 -0.84776"/> -->
       </default>
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2" material="metal"/>
       </default>
       <default class="collision">
-        <geom group="3" type="capsule" friction="0.4" margin="0.001"/>
+        <geom group="3" type="capsule" margin="0.001"/>
+        <!--  friction="0.4" -->
         <default class="foot">
-          <geom type="sphere" size="0.022" priority="1" condim="6" friction="0.8 0.02 0.01"/> <!-- friction 0.6 -->
+          <geom type="sphere" size="0.0175" priority="1" condim="6" friction="0.8 0.02 0.01"/> <!-- friction "0.6" solimp="0.015 1 0.031" -->
         </default>
       </default>
     </default>
@@ -78,7 +84,7 @@
 
   <worldbody>
     <light pos="1 0 3.5" dir="0 0 -1" directional="true" />
-    <body name="base_link" pos="0 0 0.445" childclass="go2">
+    <body name="base" pos="0 0 0.445" childclass="go2">
       <inertial pos="0.021112 0 -0.005366" quat="-0.000543471 0.713435 -0.00173769 0.700719"
         mass="6.921"
         diaginertia="0.107027 0.0980771 0.0244531" />
@@ -96,7 +102,7 @@
         <inertial pos="-0.0054 0.00194 -0.000105" quat="0.497014 0.499245 0.505462 0.498237"
           mass="0.678"
           diaginertia="0.00088403 0.000596003 0.000479967" />
-        <joint name="FL_hip_joint" class="abduction" actuatorfrcrange="-88 88" />
+        <joint name="FL_hip_joint" class="abduction"/>
         <geom mesh="hip_0" material="metal" class="visual" />
         <geom mesh="hip_1" material="gray" class="visual" />
         <geom size="0.03 0.015" pos="0 0.08 0" quat="0.707107 0.707107 0 0" class="collision" />
@@ -105,7 +111,7 @@
           <inertial pos="-0.00374 -0.0223 -0.0327" quat="0.829533 0.0847635 -0.0200632 0.551623"
             mass="1.152"
             diaginertia="0.00594973 0.00584149 0.000878787" />
-          <joint name="FL_thigh_joint" class="front_hip" actuatorfrcrange="-139 139" />
+          <joint name="FL_thigh_joint" class="front_hip" />
           <geom mesh="thigh_0" material="metal" class="visual" />
           <geom mesh="thigh_1" material="gray" class="visual" />
           <geom size="0.02 0.07" pos="-0.01 -0.01 -0.13" class="collision" />
@@ -113,7 +119,7 @@
             <inertial pos="0.00629595 -0.000622121 -0.141417"
               quat="0.710672 0.00154099 -0.00450087 0.703508"
               mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05" />
-            <joint name="FL_calf_joint" class="knee" actuatorfrcrange="-139 139" />
+            <joint name="FL_calf_joint" class="knee" />
             <geom mesh="calf_0" material="gray" class="visual" />
             <geom mesh="calf_1" material="black" class="visual" />
             <geom size="0.007 0.08" pos="0.01 0 -0.1" quat="1 0 0 0"
@@ -124,7 +130,7 @@
               <!-- <site name="FL_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/> -->
               <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
               <body name="dummy_FL_foot_collision" pos="0 0 0">
-                <geom class="foot" pos="-0.000 0 0" name="dummy_FL_foot_collision" />
+                <geom class="foot" pos="-0.002 0 0" name="dummy_FL_foot_collision" />
                 <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
                 <site name="FL_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>
               </body>
@@ -136,7 +142,7 @@
         <inertial pos="-0.0054 -0.00194 -0.000105" quat="0.498237 0.505462 0.499245 0.497014"
           mass="0.678"
           diaginertia="0.00088403 0.000596003 0.000479967" />
-        <joint name="FR_hip_joint" class="abduction" actuatorfrcrange="-88 88" />
+        <joint name="FR_hip_joint" class="abduction"/>
         <geom mesh="hip_0" material="metal" class="visual" quat="4.63268e-05 1 0 0" />
         <geom mesh="hip_1" material="gray" class="visual" quat="4.63268e-05 1 0 0" />
         <geom size="0.03 0.015" pos="0 -0.08 0" quat="0.707107 0.707107 0 0" class="collision" />
@@ -145,7 +151,7 @@
           <inertial pos="-0.00374 0.0223 -0.0327" quat="0.551623 -0.0200632 0.0847635 0.829533"
             mass="1.152"
             diaginertia="0.00594973 0.00584149 0.000878787" />
-          <joint name="FR_thigh_joint" class="front_hip" actuatorfrcrange="-139 139" />
+          <joint name="FR_thigh_joint" class="front_hip"/>
           <geom mesh="thigh_mirror_0" material="metal" class="visual" />
           <geom mesh="thigh_mirror_1" material="gray" class="visual" />
           <geom size="0.02 0.07" pos="-0.01 0.01 -0.13" class="collision" />
@@ -153,18 +159,18 @@
             <inertial pos="0.00629595 0.000622121 -0.141417"
               quat="0.703508 -0.00450087 0.00154099 0.710672"
               mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05" />
-            <joint name="FR_calf_joint" class="knee" actuatorfrcrange="-139 139" />
+            <joint name="FR_calf_joint" class="knee"/>
             <geom mesh="calf_mirror_0" material="gray" class="visual" />
             <geom mesh="calf_mirror_1" material="black" class="visual" />
             <geom size="0.007 0.08" pos="0.01 0 -0.1" quat="1 0 0 0"
               class="collision" />
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" />
             <body name="FR_foot" pos="0 0 -0.213">
-              <geom class="foot" pos="-0.000 0 0" name="FR_foot_collision" />
+              <!-- <geom class="foot" pos="-0.000 0 0" name="FR_foot_collision" /> -->
               <!-- <site name="FR_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>
               <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/> -->
               <body name="dummy_FR_foot_collision" pos="0 0 0">
-                <geom class="foot" pos="-0.000 0 0" name="dummy_FR_foot_collision" />
+                <geom class="foot" pos="-0.002 0 0" name="dummy_FR_foot_collision" />
                 <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
                 <site name="FR_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>
               </body>
@@ -176,7 +182,7 @@
         <inertial pos="0.0054 0.00194 -0.000105" quat="0.505462 0.498237 0.497014 0.499245"
           mass="0.678"
           diaginertia="0.00088403 0.000596003 0.000479967" />
-        <joint name="RL_hip_joint" class="abduction" actuatorfrcrange="-88 88" />
+        <joint name="RL_hip_joint" class="abduction"/>
         <geom mesh="hip_0" material="metal" class="visual" quat="4.63268e-05 0 1 0" />
         <geom mesh="hip_1" material="gray" class="visual" quat="4.63268e-05 0 1 0" />
         <geom size="0.03 0.015" pos="0 0.08 0" quat="0.707107 0.707107 0 0" class="collision" />
@@ -185,7 +191,7 @@
           <inertial pos="-0.00374 -0.0223 -0.0327" quat="0.829533 0.0847635 -0.0200632 0.551623"
             mass="1.152"
             diaginertia="0.00594973 0.00584149 0.000878787" />
-          <joint name="RL_thigh_joint" class="back_hip" actuatorfrcrange="-160 160" />
+          <joint name="RL_thigh_joint" class="back_hip"/>
           <geom mesh="thigh_0" material="metal" class="visual" />
           <geom mesh="thigh_1" material="gray" class="visual" />
           <geom size="0.02 0.07" pos="-0.01 -0.01 -0.13"
@@ -194,7 +200,7 @@
             <inertial pos="0.00629595 -0.000622121 -0.141417"
               quat="0.710672 0.00154099 -0.00450087 0.703508"
               mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05" />
-            <joint name="RL_calf_joint" class="knee" actuatorfrcrange="-160 160" />
+            <joint name="RL_calf_joint" class="knee" />
             <geom mesh="calf_0" material="gray" class="visual" />
             <geom mesh="calf_1" material="black" class="visual" />
             <geom size="0.007 0.08" pos="0.01 0 -0.1" quat="1 0 0 0"
@@ -205,7 +211,7 @@
               <site name="RL_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/> -->
               <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
               <body name="dummy_RL_foot_collision" pos="0 0 0">
-                <geom class="foot" pos="-0.000 0 0" name="dummy_RL_foot_collision" />
+                <geom class="foot" pos="-0.002 0 0" name="dummy_RL_foot_collision" />
                 <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
                 <site name="RL_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>
               </body>
@@ -217,7 +223,7 @@
         <inertial pos="0.0054 -0.00194 -0.000105" quat="0.499245 0.497014 0.498237 0.505462"
           mass="0.678"
           diaginertia="0.00088403 0.000596003 0.000479967" />
-        <joint name="RR_hip_joint" class="abduction" actuatorfrcrange="-88 88" />
+        <joint name="RR_hip_joint" class="abduction"/>
         <geom mesh="hip_0" material="metal" class="visual"
           quat="2.14617e-09 4.63268e-05 4.63268e-05 -1" />
         <geom mesh="hip_1" material="gray" class="visual"
@@ -228,7 +234,7 @@
           <inertial pos="-0.00374 0.0223 -0.0327" quat="0.551623 -0.0200632 0.0847635 0.829533"
             mass="1.152"
             diaginertia="0.00594973 0.00584149 0.000878787" />
-          <joint name="RR_thigh_joint" class="back_hip" actuatorfrcrange="-160 160" />
+          <joint name="RR_thigh_joint" class="back_hip"/>
           <geom mesh="thigh_mirror_0" material="metal" class="visual" />
           <geom mesh="thigh_mirror_1" material="gray" class="visual" />
           <geom size="0.02 0.07" pos="-0.01 0.01 -0.13"
@@ -237,7 +243,7 @@
             <inertial pos="0.00629595 0.000622121 -0.141417"
               quat="0.703508 -0.00450087 0.00154099 0.710672"
               mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05" />
-            <joint name="RR_calf_joint" class="knee" actuatorfrcrange="-160 160" />
+            <joint name="RR_calf_joint" class="knee"/>
             <geom mesh="calf_mirror_0" material="gray" class="visual" />
             <geom mesh="calf_mirror_1" material="black" class="visual" />
             <geom size="0.007 0.08" pos="0.01 0 -0.1" quat="1 0 0 0"
@@ -248,7 +254,7 @@
               <site name="RR_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>               -->
               <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
               <body name="dummy_RR_foot_collision" pos="0 0 0">
-                <geom class="foot" pos="-0.000 0 0" name="dummy_RR_foot_collision" />
+                <geom class="foot" pos="-0.002 0 0" name="dummy_RR_foot_collision" />
                 <inertial diaginertia="1e-14 1e-14 1e-14" mass="1e-6" pos="0 0 0"/>
                 <site name="RR_grf_sensor" pos="0 0 0" size="0.025" type="sphere"/>
               </body>
@@ -263,7 +269,7 @@
   </worldbody>
 
   <actuator>
-    <position class="abduction" name="FL_hip" joint="FL_hip_joint" />
+    <!-- <position class="abduction" name="FL_hip" joint="FL_hip_joint" />
     <position class="hip" name="FL_thigh" joint="FL_thigh_joint" />
     <position class="knee" name="FL_calf" joint="FL_calf_joint" />
     <position class="abduction" name="FR_hip" joint="FR_hip_joint" />
@@ -274,19 +280,31 @@
     <position class="knee" name="RL_calf" joint="RL_calf_joint" />
     <position class="abduction" name="RR_hip" joint="RR_hip_joint" />
     <position class="hip" name="RR_thigh" joint="RR_thigh_joint" />
-    <position class="knee" name="RR_calf" joint="RR_calf_joint" />
-    <!-- <motor class="abduction" name="FR_hip" joint="FR_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="FR_thigh" joint="FR_thigh_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="FR_calf" joint="FR_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="abduction" name="FL_hip" joint="FL_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="FL_thigh" joint="FL_thigh_joint"  ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="FL_calf" joint="FL_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="abduction" name="RR_hip" joint="RR_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="RR_thigh" joint="RR_thigh_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="RR_calf" joint="RR_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="abduction" name="RL_hip" joint="RL_hip_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="hip" name="RL_thigh" joint="RL_thigh_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/>
-    <motor class="knee" name="RL_calf" joint="RL_calf_joint" ctrllimited="true" ctrlrange="-23.7 23.7"/> -->
+    <position class="knee" name="RR_calf" joint="RR_calf_joint" /> -->
+    <motor class="abduction" name="FL_hip" joint="FL_hip_joint"/>
+    <motor class="hip" name="FL_thigh" joint="FL_thigh_joint"/>
+    <motor class="knee" name="FL_calf" joint="FL_calf_joint"/>
+    <motor class="abduction" name="FR_hip" joint="FR_hip_joint"/>
+    <motor class="hip" name="FR_thigh" joint="FR_thigh_joint"/>
+    <motor class="knee" name="FR_calf" joint="FR_calf_joint"/>
+    <motor class="abduction" name="RL_hip" joint="RL_hip_joint"/>
+    <motor class="hip" name="RL_thigh" joint="RL_thigh_joint"/>
+    <motor class="knee" name="RL_calf" joint="RL_calf_joint"/>
+    <motor class="abduction" name="RR_hip" joint="RR_hip_joint"/>
+    <motor class="hip" name="RR_thigh" joint="RR_thigh_joint"/>
+    <motor class="knee" name="RR_calf" joint="RR_calf_joint"/>
+    <!-- <general class="abduction" name="FL_hip" joint="FL_hip_joint" />
+    <general class="hip" name="FL_thigh" joint="FL_thigh_joint" />
+    <general class="knee" name="FL_calf" joint="FL_calf_joint" />
+    <general class="abduction" name="FR_hip" joint="FR_hip_joint" />
+    <general class="hip" name="FR_thigh" joint="FR_thigh_joint" />
+    <general class="knee" name="FR_calf" joint="FR_calf_joint" />
+    <general class="abduction" name="RL_hip" joint="RL_hip_joint" />
+    <general class="hip" name="RL_thigh" joint="RL_thigh_joint" />
+    <general class="knee" name="RL_calf" joint="RL_calf_joint" />
+    <general class="abduction" name="RR_hip" joint="RR_hip_joint" />
+    <general class="hip" name="RR_thigh" joint="RR_thigh_joint" />
+    <general class="knee" name="RR_calf" joint="RR_calf_joint" />  -->
   </actuator>
 
   <sensor>

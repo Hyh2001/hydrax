@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import math
 import numpy as np
 
-reader_base = LogReader(ROOT + "/logs/simulation_20251005_153501")
-reader_pain_reward = LogReader(ROOT + "/logs/simulation_20251005_154505")
+reader_base = LogReader(ROOT + "/logs/trot_forward_0.3m_s_fl_foot_hold")
+reader_pain_reward = LogReader(ROOT + "/logs/trot_forward_0.3m_s_pain_reward_fl_foot_hold") # simulation_20251005_154505
 # Get basic info
 # reader.print_info()
 
@@ -17,10 +17,10 @@ column_names = ['torso_linear_vel_x_yaw_frame', 'torso_linear_vel_y_yaw_frame', 
 # column_names = ['torso_height', 'torso_height_des']
 # column_names = ['FR_foot_force_z', 'FL_foot_force_z', 'RR_foot_force_z', 'RL_foot_force_z']
 column_names = ['torso_linear_vel_x_yaw_frame',
-                'step_des_FL_x', 'foot_pos_FL_x',
-                'step_des_FL_z', 'foot_pos_FL_z',
+                'step_des_FR_x', 'foot_pos_FR_x',
+                'torso_angular_vel_yaw_base', 'foot_pos_FR_z',
                 'torso_height_des', 'torso_height', 
-                'FL_foot_force_z']
+                'FR_foot_force_z']
 
 # sanity checks, not guaranteed to be logged every time
 # column_names = ["body_weight"]

@@ -46,12 +46,14 @@ class QuadrupedWalking(Task):
         self.RR_foot_orient_sensor_id = mj_model.sensor("RR_foot_quat").id
         
         # Set the target height
-        self.target_height = 0.27
+        # self.target_height = 0.27
+        self.target_height = 0.25
         
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
         
         # gait
+        # self.gait = "stand"
         self.gait = "trot"
         # self.gait = "gallop"
         self._gait_phase = {
@@ -83,7 +85,7 @@ class QuadrupedWalking(Task):
             mj_model.site("RR_hip_site").id,
         ])
         # self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s in the local frame
-        self.target_linear_velocity = jnp.array([0.3, 0.0])  # m/s in the local frame
+        self.target_linear_velocity = jnp.array([0.0, 0.0])  # m/s in the local frame
         self.target_angular_velocity = jnp.array([0.0])  # rad/s in the local frame
 
         # get the foot offset from hip from qpos
@@ -91,22 +93,37 @@ class QuadrupedWalking(Task):
         # print(self.foot_offset_xy)
         
         # cost weights
-        # trot with no pain
-        self.cost_weights = {'orientation': 100,
-                'height': 300, # 100
-                'yaw': 0.0,
-                'linear_velocity': 20.0, # 10
-                'z_linear_velocity': 20.0,
-                'angular_velocity': 10.0,
+        # trot with no pain position control
+        # self.cost_weights = {'orientation': 100,
+        #         'height': 300, # 100
+        #         'yaw': 0.0,
+        #         'linear_velocity': 20.0, # 10
+        #         'z_linear_velocity': 20.0,
+        #         'angular_velocity': 10.0,
+        #         'xy_angular_velocity': 0.0,
+        #         'gait': 0.5, 
+        #         'gait_xy': 2.0,
+        #         'gait_z': 10.0,
+        #         'foot_slip': 30.0,
+        #         'contact_forces': 0.0, 
+        #         'joint_limits': 0.0, 
+        #         }
+        # trot with pain torque control
+        self.cost_weights = {'orientation': 50.0,
+                'height': 200, # 100
+                'yaw': 30.0,
+                'linear_velocity': 100.0, # 100
+                'z_linear_velocity': 10.0,
+                'angular_velocity': 100.0, # 100
                 'xy_angular_velocity': 0.0,
-                'gait': 0.5, 
-                'gait_xy': 2.0,
+                'gait': 1.0, 
+                'gait_xy': 1.0,
                 'gait_z': 10.0,
-                'foot_slip': 30.0,
+                'foot_slip': 0.0, # 50.0
                 'contact_forces': 0.0, 
                 'joint_limits': 0.0, 
                 }
-        # trot with pain
+        # trot with pain position control
         # self.cost_weights = {'orientation': 100,
         #         'height': 300, # 100
         #         'yaw': 0.0,
@@ -121,21 +138,7 @@ class QuadrupedWalking(Task):
         #         'contact_forces': 0.003, 
         #         'joint_limits': 1000.0, 
         #         }
-        # bounding with no pain
-        # self.cost_weights = {'orientation': 200,
-        #         'height': 300, # 100
-        #         'yaw': 0.0,
-        #         'linear_velocity': 0.0, # 10
-        #         'z_linear_velocity': 0.0,
-        #         'angular_velocity': 0.0,
-        #         'xy_angular_velocity': 0.0,
-        #         'gait': 10.0, 
-        #         'gait_xy': 2.0,
-        #         'gait_z': 10.0,
-        #         'foot_slip': 30.0,
-        #         'contact_forces': 0.0, 
-        #         'joint_limits': 0.0, 
-        #         }
+
 
         self._raibert_heuristic_feedback_gain = 0.5  # 0.5
         
@@ -459,7 +462,7 @@ class QuadrupedWalking(Task):
             stance_position = jnp.array([
                 touchdown[0],  # X: stay at touchdown position during stance
                 touchdown[1],  # Y: stay at touchdown position during stance  
-                -0.02  # Z: foot radius on ground during stance
+                0.0175  # Z: foot radius on ground during stance. -0.02
             ])
             
             final_pos = jnp.where(is_swing, swing_position, stance_position)
@@ -576,12 +579,12 @@ class QuadrupedWalking(Task):
         return (self.cost_weights['orientation'] * orientation_cost + 
                 self.cost_weights['height'] * height_cost + 
                 self.cost_weights['yaw'] * yaw_cost +
-                self.cost_weights['linear_velocity'] * linear_velocity_cost + # 20.0
+                self.cost_weights['linear_velocity'] * linear_velocity_cost + 
                 self.cost_weights['z_linear_velocity'] * z_linear_velocity_cost +
-                self.cost_weights['angular_velocity'] * angular_velocity_cost + # 10.0
+                self.cost_weights['angular_velocity'] * angular_velocity_cost + 
                 self.cost_weights['xy_angular_velocity'] * xy_angular_velocity_cost + 
                 self.cost_weights['foot_slip'] * foot_slip_cost +
-                self.cost_weights['gait'] * gait_cost +  # 0.3 for z-only, 0.5 roughly walks two step, 1.0 for raibert
+                self.cost_weights['gait'] * gait_cost + 
                 self.cost_weights['contact_forces'] * contact_forces_cost +
                 self.cost_weights['joint_limits'] * joint_limits_cost
         )
@@ -596,12 +599,13 @@ class QuadrupedWalking(Task):
         orientation_cost = jnp.sum(
             jnp.square(self._get_torso_orientation(state)[0:2])
         )
-        return (self.cost_weights['orientation'] * orientation_cost +
-                self.cost_weights['height'] * height_cost +
-                self.cost_weights['linear_velocity'] * linear_velocity_cost +
-                self.cost_weights['angular_velocity'] * angular_velocity_cost  
-                # self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])  # see whether will ease the problem of gradually sinking base
-        )
+        # return (self.cost_weights['orientation'] * orientation_cost +
+        #         self.cost_weights['height'] * height_cost +
+        #         self.cost_weights['linear_velocity'] * linear_velocity_cost +
+        #         self.cost_weights['angular_velocity'] * angular_velocity_cost  
+        #         # self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])  # see whether will ease the problem of gradually sinking base
+        # )
+        return 0.0
         # return 1.0*self.running_cost(state, jnp.zeros(self.model.nu)) 
 
     def domain_randomize_model(self, rng: jax.Array) -> Dict[str, jax.Array]:
@@ -702,6 +706,21 @@ class QuadrupedWalking(Task):
         data_dict["RR_hip_joint"] = state.qpos[16]
         data_dict["RR_thigh_joint"] = state.qpos[17]
         data_dict["RR_calf_joint"] = state.qpos[18]
+        
+        data_dict["FL_hip_control"] = control[0]
+        data_dict["FL_thigh_control"] = control[1]
+        data_dict["FL_calf_control"] = control[2]
+        data_dict["FR_hip_control"] = control[3]
+        data_dict["FR_thigh_control"] = control[4]     
+        data_dict["FR_calf_control"] = control[5]
+        data_dict["RL_hip_control"] = control[6]
+        data_dict["RL_thigh_control"] = control[7]
+        data_dict["RL_calf_control"] = control[8]
+        data_dict["RR_hip_control"] = control[9]
+        data_dict["RR_thigh_control"] = control[10]
+        data_dict["RR_calf_control"] = control[11]
+        # print(control)
+        
         
         # pain related 
         # body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
