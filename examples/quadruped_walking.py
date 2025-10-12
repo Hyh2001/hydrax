@@ -54,31 +54,31 @@ if __name__ == "__main__":
     #     num_knots=4,         
     # )
     # torque
-    ctrl = MPPI(
-        task,
-        num_samples=2048, # 2048      
-        noise_level=1.0,  # 
-        temperature=0.1,  # 0.5 proportional to cost level, cost gain 1 -> temperature 0.1 
-        num_randomizations=1, 
-        plan_horizon=0.4,    # 0.6
-        spline_type="zero",  # zero
-        num_knots=4,         
-    )
+    # ctrl = MPPI(
+    #     task,
+    #     num_samples=2048, # 2048      
+    #     noise_level=1.0,  # 
+    #     temperature=0.1,  # 0.5 proportional to cost level, cost gain 1 -> temperature 0.1 
+    #     num_randomizations=1, 
+    #     plan_horizon=0.4,    # 0.6
+    #     spline_type="zero",  # zero
+    #     num_knots=4,         
+    # )
     
     
     # DIAL MPC original
-    # ctrl = DIAL(
-    #     task,
-    #     num_samples=2048,
-    #     noise_level=1.0, # 1.0 for original 
-    #     beta_opt_iter=0.5, # 0.01, 0.5 for original
-    #     beta_horizon=0.9, # 1, 0.9 for original
-    #     temperature=0.06, # 0.1, 0.06 for original
-    #     plan_horizon=0.4,
-    #     spline_type="zero",
-    #     num_knots=4,
-    #     iterations=2,
-    # )
+    ctrl = DIAL(
+        task,
+        num_samples=2048,
+        noise_level=1.0, # 1.0 for original 
+        beta_opt_iter=0.5, # 0.01, 0.5 for original
+        beta_horizon=0.9, # 1, 0.9 for original
+        temperature=0.5, # 0.1, 0.06 for original
+        plan_horizon=0.4,
+        spline_type="zero",
+        num_knots=4,
+        iterations=2,
+    )
     
     
     # Define the model used for simulation - OPTIMIZED FOR REALTIME

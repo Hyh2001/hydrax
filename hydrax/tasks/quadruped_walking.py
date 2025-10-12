@@ -109,6 +109,21 @@ class QuadrupedWalking(Task):
         #         'joint_limits': 0.0, 
         #         }
         # trot with no pain torque control
+        self.cost_weights = {'orientation': 100,
+                'height': 300, # 100
+                'yaw': 0.0,
+                'linear_velocity': 100.0, # 10
+                'z_linear_velocity': 20.0,
+                'angular_velocity': 50.0,
+                'xy_angular_velocity': 0.0,
+                'gait': 2.0, 
+                'gait_xy': 2.0,
+                'gait_z': 10.0,
+                'foot_slip': 50.0,
+                'contact_forces': 0.0, 
+                'joint_limits': 0.0, 
+                }
+        # standing
         # self.cost_weights = {'orientation': 100,
         #         'height': 300, # 100
         #         'yaw': 0.0,
@@ -123,21 +138,6 @@ class QuadrupedWalking(Task):
         #         'contact_forces': 0.0, 
         #         'joint_limits': 0.0, 
         #         }
-        # standing
-        self.cost_weights = {'orientation': 50.0,
-                'height': 200, # 100
-                'yaw': 30.0,
-                'linear_velocity': 100.0, # 100
-                'z_linear_velocity': 10.0,
-                'angular_velocity': 50.0, # 100
-                'xy_angular_velocity': 0.0,
-                'gait': 5.0, 
-                'gait_xy': 5.0,
-                'gait_z': 10.0,
-                'foot_slip': 0.0, # 50.0
-                'contact_forces': 0.0, 
-                'joint_limits': 0.0, 
-                }
         # trot with pain position control
         # self.cost_weights = {'orientation': 100,
         #         'height': 300, # 100
@@ -614,12 +614,24 @@ class QuadrupedWalking(Task):
         orientation_cost = jnp.sum(
             jnp.square(self._get_torso_orientation(state)[0:2])
         )
+        # for position control
         # return (self.cost_weights['orientation'] * orientation_cost +
         #         self.cost_weights['height'] * height_cost +
         #         self.cost_weights['linear_velocity'] * linear_velocity_cost +
         #         self.cost_weights['angular_velocity'] * angular_velocity_cost  
         #         # self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])  # see whether will ease the problem of gradually sinking base
         # )
+        # for torque control
+        # feet_target= self._get_foot_pos_des(state)  # Desired foot positions (4, 3)
+        # feet_error = feet_target - self._get_foot_positions(state)  # (4, 3)
+        # xy_error = feet_error[:, :2]/0.05
+        # z_error = feet_error[:, 2]/0.05
+        # gait_cost = self.cost_weights['gait_xy'] * jnp.sum(xy_error**2) + self.cost_weights['gait_z'] * jnp.sum(z_error**2)
+        # return (self.cost_weights['gait'] * gait_cost + 
+        #         self.cost_weights['orientation'] * orientation_cost +
+        #         self.cost_weights['height'] * height_cost +
+        #         self.cost_weights['linear_velocity'] * linear_velocity_cost +
+        #         self.cost_weights['angular_velocity'] * angular_velocity_cost)
         return 0.0
         # return 1.0*self.running_cost(state, jnp.zeros(self.model.nu)) 
 
