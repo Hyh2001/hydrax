@@ -137,25 +137,26 @@ class SamplingBasedController(ABC):
         # Warm-start spline by advancing knot times by sim dt, then recomputing
         # the mean knots by evaluating the old spline at those times
         tk = params.tk
+        # jax.debug.print("params mean: {}", params.mean[None, ...])
         new_tk = (
             jnp.linspace(0.0, self.plan_horizon, self.num_knots) + state.time
         )
         new_mean = self.interp_func(new_tk, tk, params.mean[None, ...])[0]
         params = params.replace(tk=new_tk, mean=new_mean)
-
         def _optimize_scan_body(params: Any, _: Any):
             # Sample random control sequences from spline knots
             knots, params = self.sample_knots(params)
             knots = jnp.clip(
                 knots, self.task.u_min, self.task.u_max
             )  # (num_rollouts, num_knots, nu)
-
+            
             # Roll out the control sequences, applying domain randomizations and
             # combining costs using self.risk_strategy.
             rng, dr_rng = jax.random.split(params.rng)
             rollouts = self.rollout_with_randomizations(
                 state, new_tk, knots, dr_rng
             )
+
             params = params.replace(rng=rng)
 
             # Update the policy parameters based on the combined costs
@@ -246,6 +247,9 @@ class SamplingBasedController(ABC):
             x: mjx.Data, u: jax.Array
         ) -> Tuple[mjx.Data, Tuple[mjx.Data, jax.Array, jax.Array]]:
             """Compute the cost and observation, then advance the state."""
+            ############ apply a PD based controller to get torque
+            u = 30 * (u - state.qpos[7:]) + 0.65 * (-1 * state.qvel[6:])  # PD for torque controlled joints
+            u = jnp.clip(u, self.task.u_min, self.task.u_max)
             x = x.replace(ctrl=u)
             x = mjx.step(model, x)  # step model + compute site positions
             cost = self.dt * self.task.running_cost(x, u)
@@ -260,7 +264,9 @@ class SamplingBasedController(ABC):
 
         costs = jnp.append(costs, final_cost)
         trace_sites = jnp.append(trace_sites, final_trace_sites[None], axis=0)
-
+ 
+        costs = jnp.where(jnp.isnan(costs), 1e8, costs) # replace Nan cost with large cost value
+        
         return states, Trajectory(
             controls=controls,
             knots=knots,

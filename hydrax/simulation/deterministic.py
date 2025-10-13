@@ -104,13 +104,14 @@ def run_interactive(  # noqa: PLR0912, PLR0915
     print("Jitting the controller...")
     st = time.time()
     policy_params, rollouts = jit_optimize(mjx_data, policy_params)
-    policy_params, rollouts = jit_optimize(mjx_data, policy_params)
+    # policy_params, rollouts = jit_optimize(mjx_data, policy_params)
 
     tq = jnp.arange(0, sim_steps_per_replan) * mj_model.opt.timestep
     tk = policy_params.tk
-    knots = policy_params.mean[None, ...]
+    knots = policy_params.mean[None, ...] 
     _ = jit_interp_func(tq, tk, knots)
-    _ = jit_interp_func(tq, tk, knots)
+    
+    # _ = jit_interp_func(tq, tk, knots)
     print(f"Time to jit: {time.time() - st:.3f} seconds")
     num_traces = min(rollouts.controls.shape[1], max_traces)
 
@@ -195,7 +196,6 @@ def run_interactive(  # noqa: PLR0912, PLR0915
                 time=mj_data.time,
             )
 
-            # mjx_data = controller.task.update_userdata(mjx_data)  # update userdata
             # Do a replanning step
             plan_start = time.time()
             policy_params, rollouts = jit_optimize(mjx_data, policy_params)
@@ -246,7 +246,9 @@ def run_interactive(  # noqa: PLR0912, PLR0915
 
             # simulate the system between spline replanning steps
             for i in range(sim_steps_per_replan):
-                mj_data.ctrl[:] = np.array(us[i])
+                mj_data.ctrl[:] = 30 * (np.array(us[i] - mj_data.qpos[7:19])) + 0.65 * (-1 * np.array(mj_data.qvel[6:18]))  # PD for torque controlled joints
+                # print(mj_data.ctrl[:])
+                # mj_data.ctrl[:] = np.array(us[i])  # for position control
                 mj_model, mj_data = sim_utils.post_physics_step(mj_model, mj_data, controller.task)
                 mujoco.mj_step(mj_model, mj_data)
                 viewer.sync()

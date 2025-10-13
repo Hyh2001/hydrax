@@ -46,8 +46,8 @@ class QuadrupedWalking(Task):
         self.RR_foot_orient_sensor_id = mj_model.sensor("RR_foot_quat").id
         
         # Set the target height
-        # self.target_height = 0.27
-        self.target_height = 0.25
+        self.target_height = 0.27
+        # self.target_height = 0.25
         
         # Standing configuration
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
@@ -67,8 +67,8 @@ class QuadrupedWalking(Task):
             # duty_ratio, cadence, amplitude
             "stand": jnp.array([1.0, 1.0, 0.0]),
             "walk": jnp.array([0.75, 1.0, 0.08]),
-            # "trot": jnp.array([0.45, 2.0, 0.08]),
-            "trot": jnp.array([0.45, 2.0, 0.1]),
+            "trot": jnp.array([0.45, 2.0, 0.08]),
+            # "trot": jnp.array([0.45, 2.0, 0.1]),
             "canter": jnp.array([0.4, 4.0, 0.06]),
             "gallop": jnp.array([0.3, 3.5, 0.10]),
         }
@@ -108,33 +108,32 @@ class QuadrupedWalking(Task):
         #         'contact_forces': 0.0, 
         #         'joint_limits': 0.0, 
         #         }
-        # trot with no pain torque control
         self.cost_weights = {'orientation': 100,
                 'height': 300, # 100
                 'yaw': 0.0,
-                'linear_velocity': 100.0, # 10
+                'linear_velocity': 20.0, # 10
                 'z_linear_velocity': 20.0,
-                'angular_velocity': 50.0,
+                'angular_velocity': 10.0,
                 'xy_angular_velocity': 0.0,
-                'gait': 2.0, 
-                'gait_xy': 2.0,
+                'gait': 100.0, 
+                'gait_xy': 1.0,
                 'gait_z': 10.0,
-                'foot_slip': 50.0,
+                'foot_slip': 30.0,
                 'contact_forces': 0.0, 
                 'joint_limits': 0.0, 
                 }
-        # standing
-        # self.cost_weights = {'orientation': 100,
-        #         'height': 300, # 100
-        #         'yaw': 0.0,
-        #         'linear_velocity': 100.0, # 10
-        #         'z_linear_velocity': 20.0,
-        #         'angular_velocity': 50.0,
+        # DIAL like, not work
+        # self.cost_weights = {'orientation': 0.5,
+        #         'height': 1.0, # 100
+        #         'yaw': 0.3,
+        #         'linear_velocity': 1.0, # 10
+        #         'z_linear_velocity': 0.0,
+        #         'angular_velocity': 1.0,
         #         'xy_angular_velocity': 0.0,
-        #         'gait': 2.0, 
-        #         'gait_xy': 2.0,
-        #         'gait_z': 10.0,
-        #         'foot_slip': 30.0,
+        #         'gait': 1.0, 
+        #         'gait_xy': 0.1,
+        #         'gait_z': 1.0,
+        #         'foot_slip': 0.0,
         #         'contact_forces': 0.0, 
         #         'joint_limits': 0.0, 
         #         }
@@ -591,7 +590,7 @@ class QuadrupedWalking(Task):
         # # we should take into account the foot radius (0.022 m)
         # gait_cost = jnp.sum(((feet_target + 0.022 - self._get_foot_positions(state)[:,2]) / 0.05) ** 2)
          
-        return (self.cost_weights['orientation'] * orientation_cost + 
+        cost = (self.cost_weights['orientation'] * orientation_cost + 
                 self.cost_weights['height'] * height_cost + 
                 self.cost_weights['yaw'] * yaw_cost +
                 self.cost_weights['linear_velocity'] * linear_velocity_cost + 
@@ -603,6 +602,8 @@ class QuadrupedWalking(Task):
                 self.cost_weights['contact_forces'] * contact_forces_cost +
                 self.cost_weights['joint_limits'] * joint_limits_cost
         )
+         
+        return cost
 
     def terminal_cost(self, state: mjx.Data) -> jax.Array:
         """The terminal cost ϕ(x_T)."""
@@ -615,12 +616,13 @@ class QuadrupedWalking(Task):
             jnp.square(self._get_torso_orientation(state)[0:2])
         )
         # for position control
-        # return (self.cost_weights['orientation'] * orientation_cost +
-        #         self.cost_weights['height'] * height_cost +
-        #         self.cost_weights['linear_velocity'] * linear_velocity_cost +
-        #         self.cost_weights['angular_velocity'] * angular_velocity_cost  
-        #         # self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])  # see whether will ease the problem of gradually sinking base
-        # )
+        cost = (self.cost_weights['orientation'] * orientation_cost +
+                self.cost_weights['height'] * height_cost +
+                self.cost_weights['linear_velocity'] * linear_velocity_cost +
+                self.cost_weights['angular_velocity'] * angular_velocity_cost  
+                # self.cost_weights['z_linear_velocity'] * jnp.square(self._get_torso_linear_velocity(state)[2])  # see whether will ease the problem of gradually sinking base
+        )
+        # return cost
         # for torque control
         # feet_target= self._get_foot_pos_des(state)  # Desired foot positions (4, 3)
         # feet_error = feet_target - self._get_foot_positions(state)  # (4, 3)
