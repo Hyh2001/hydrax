@@ -2,26 +2,34 @@
   <compiler angle="radian" meshdir="assets" autolimits="true" />
 
   <!-- <option cone="elliptic" impratio="100" /> -->
-  <option timestep="0.02" iterations="1" ls_iterations="5">
+  <option timestep="0.02" iterations="1" ls_iterations="5" cone="elliptic" impratio="100">
     <flag eulerdamp="disable" />
   </option>
+  <!-- <option timestep="0.02"
+    integrator="implicitfast"
+    impratio="100"
+    iterations="1"
+    ls_iterations="5"
+  >
+    <flag eulerdamp="disable"/>
+  </option> -->
+
   <custom>
     <numeric data="15" name="max_contact_points" />
     <numeric data="15" name="max_geom_pairs" />
   </custom>
 
-  <size nuserdata="16" />
-
   <default>
     <geom condim="3" solimp="0.0 0.95 0.01" />
     <default class="go2">
       <site rgba="1 0 0 1" size="0.01" group="5" />
-      <!-- torque -->
-      <!-- <joint damping="0.65" armature="0.01" frictionloss="0.05" /> -->
-      <!-- position -->
+      <!-- realistic -->
+      <!-- <joint damping="2.0" armature="0.01" frictionloss="0.2"/> 
+      <position kp="16" dampratio="1"/> -->
+      <!-- ideal -->
       <joint damping="0.0" armature="1" frictionloss="0.00" />
       <position kp="500" dampratio="1" inheritrange="1"/>
-      <!-- <position kp="30" dampratio="0.5"/> -->
+      
       <default class="abduction">
         <joint axis="1 0 0" range="-1.0472 1.0472"/>
       </default>
@@ -38,7 +46,6 @@
       </default>
       <default class="knee">
         <joint axis="0 1 0" range="-2.7227 -0.83776"/>
-        <!-- <motor ctrlrange="-45.43 45.43"/> -->
       </default>
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2" material="metal"/>
