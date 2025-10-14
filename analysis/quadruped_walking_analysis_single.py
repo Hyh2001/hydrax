@@ -21,10 +21,21 @@ column_names = ["FL_hip_joint", "FL_hip_joint_des",
                 "RL_calf_joint", "RL_calf_joint_des",
                 ]
 
+calf_names = ["FL_calf_joint_des",
+                "FL_calf_joint",]
+hip_names = ["FL_hip_joint_des",
+                "FL_hip_joint",]
+thigh_names = ["FL_thigh_joint_des",
+                "FL_thigh_joint",]
+column_dict = {"tracking_calf": calf_names, 
+               "tracking_hip": hip_names,
+               "tracking_thigh": thigh_names,}
+
 # sanity checks, not guaranteed to be logged every time
 # column_names = ["body_weight"]
 
 print(reader.get_statistics('torso_linear_vel_x_yaw_frame'))
 # print(reader.get_statistics('torso_linear_vel_y_yaw_frame'))
 # print(reader.get_statistics('torso_angular_vel_yaw_base'))
-reader.plot_time_series(column_names)
+# reader.plot_time_series(column_names)
+reader.plot_multiple_series(column_dict)
