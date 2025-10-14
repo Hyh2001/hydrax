@@ -703,6 +703,18 @@ class QuadrupedWalking(Task):
         data_dict["RR_thigh_joint"] = state.qpos[17]
         data_dict["RR_calf_joint"] = state.qpos[18]
         
+        data_dict["FL_hip_joint_des"] = control[0]
+        data_dict["FL_thigh_joint_des"] = control[1]
+        data_dict["FL_calf_joint_des"] = control[2]
+        data_dict["FR_hip_joint_des"] = control[3]
+        data_dict["FR_thigh_joint_des"] = control[4]
+        data_dict["FR_calf_joint_des"] = control[5]
+        data_dict["RL_hip_joint_des"] = control[6]
+        data_dict["RL_thigh_joint_des"] = control[7]
+        data_dict["RL_calf_joint_des"] = control[8]
+        data_dict["RR_hip_joint_des"] = control[9]
+        data_dict["RR_thigh_joint_des"] = control[10]
+        data_dict["RR_calf_joint_des"] = control[11]
         # pain related 
         # body_mass = jnp.sum(self.model.body_mass)  # Total mass of the robot
         # gravity = jnp.abs(self.model.opt.gravity[2])  # Gravity magnitude (z-axis)
