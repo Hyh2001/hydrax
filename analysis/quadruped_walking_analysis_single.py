@@ -1,7 +1,7 @@
 from hydrax.utils.logger import LogReader
 from hydrax import ROOT
 
-reader = LogReader(ROOT + "/logs/simulation_20251013_131508")
+reader = LogReader(ROOT + "/logs/simulation_20251014_120633")
 
 # Get basic info
 reader.print_info()
@@ -17,12 +17,24 @@ column_names = reader.get_cost_column_names()
 # column_names = ['torso_height', 'torso_height_des']
 # column_names = ['FR_foot_force_z', 'FL_foot_force_z', 'RR_foot_force_z', 'RL_foot_force_z']
 # column_names = ['base_force_x', 'base_force_y', 'base_force_z',]
-# column_names = ["FL_calf_joint", "FR_calf_joint", "RL_calf_joint", "RR_calf_joint"]
-
+# column_names = ["FL_calf_joint", "FL_calf_control", 
+#                 "FR_calf_joint", "FR_calf_control",
+#                 "RL_calf_joint", "RL_calf_control",
+#                 "RR_calf_joint", "RR_calf_control"]
+calf_names = ["FL_calf_control",
+                "FL_calf_joint",]
+hip_names = ["FL_hip_control",
+                "FL_hip_joint",]
+thigh_names = ["FL_thigh_control",
+                "FL_thigh_joint",]
+column_dict = {"tracking_calf": calf_names, 
+               "tracking_hip": hip_names,
+               "tracking_thigh": thigh_names,}
 # sanity checks, not guaranteed to be logged every time
 # column_names = ["body_weight"]
 
 print(reader.get_statistics('torso_linear_vel_x_yaw_frame'))
 # print(reader.get_statistics('torso_linear_vel_y_yaw_frame'))
 # print(reader.get_statistics('torso_angular_vel_yaw_base'))
-reader.plot_time_series(column_names)
+# reader.plot_time_series(column_names)
+reader.plot_multiple_series(column_dict)

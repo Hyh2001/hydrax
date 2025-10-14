@@ -2,7 +2,12 @@
   <compiler angle="radian" meshdir="assets" autolimits="true" />
 
   <!-- <option cone="elliptic" impratio="100" cone="pyramidal" impratio="100" /> -->
-  <option timestep="0.02" iterations="1" ls_iterations="5">
+  <option timestep="0.02" 
+          iterations="1" 
+          ls_iterations="5" 
+          cone="elliptic" 
+          impratio="100"
+          integrator="implicitfast">
     <flag eulerdamp="disable" />
   </option>
   <custom>
@@ -11,14 +16,14 @@
   </custom>
 
   <default>
-    <geom condim="1" margin="0.001" friction="0.6"/> <!-- solimp="0.0 0.95 0.01" -->
+    <geom condim="3" margin="0.001" friction="0.6"/> <!-- condim="1" solimp="0.0 0.95 0.01" -->
     <default class="go2">
       <site rgba="1 0 0 1" size="0.01" group="5" />
       <!-- general control-->
       <!-- <joint armature="0.01" frictionloss="0.2" damping="2"/> 
       <general forcerange="-24 24" biastype="affine" gainprm="50 0 0" biasprm="0 -50 -0.5"/> -->
       <!-- torque control-->
-      <joint axis="0 1 0" damping="2" armature="0.01" frictionloss="0.2"/>
+      <joint axis="0 1 0" damping="0.65" armature="0.01"/> frictionloss="0.2" damping="2"
 
       <!-- ideal -->
       <!-- <joint damping="0.0" armature="1.0" frictionloss="0.00" />

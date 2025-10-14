@@ -248,7 +248,7 @@ class SamplingBasedController(ABC):
         ) -> Tuple[mjx.Data, Tuple[mjx.Data, jax.Array, jax.Array]]:
             """Compute the cost and observation, then advance the state."""
             ############ apply a PD based controller to get torque
-            u = 30 * (u - state.qpos[7:]) + 0.65 * (-1 * state.qvel[6:])  # PD for torque controlled joints
+            u = 30.0 * (u - state.qpos[7:]) + 1.0 * (-1 * state.qvel[6:])  # PD for torque controlled joints
             u = jnp.clip(u, self.task.u_min, self.task.u_max)
             x = x.replace(ctrl=u)
             x = mjx.step(model, x)  # step model + compute site positions

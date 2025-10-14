@@ -246,8 +246,7 @@ def run_interactive(  # noqa: PLR0912, PLR0915
 
             # simulate the system between spline replanning steps
             for i in range(sim_steps_per_replan):
-                mj_data.ctrl[:] = 30 * (np.array(us[i] - mj_data.qpos[7:19])) + 0.65 * (-1 * np.array(mj_data.qvel[6:18]))  # PD for torque controlled joints
-                # print(mj_data.ctrl[:])
+                mj_data.ctrl[:] = 100 * (np.array(us[i] - mj_data.qpos[7:19])) + 5.0 * (-1 * np.array(mj_data.qvel[6:18]))  # PD for torque controlled joints
                 # mj_data.ctrl[:] = np.array(us[i])  # for position control
                 mj_model, mj_data = sim_utils.post_physics_step(mj_model, mj_data, controller.task)
                 mujoco.mj_step(mj_model, mj_data)

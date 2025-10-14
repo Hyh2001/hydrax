@@ -53,8 +53,8 @@ class QuadrupedWalking(Task):
         self.qstand = jnp.array(mj_model.keyframe("stand").qpos)
         
         # gait
-        # self.gait = "stand"
-        self.gait = "trot"
+        self.gait = "stand"
+        # self.gait = "trot"
         # self.gait = "gallop"
         self._gait_phase = {
             "stand": jnp.zeros(4),
@@ -94,20 +94,6 @@ class QuadrupedWalking(Task):
         
         # cost weights
         # trot with no pain position control
-        # self.cost_weights = {'orientation': 100,
-        #         'height': 300, # 100
-        #         'yaw': 0.0,
-        #         'linear_velocity': 20.0, # 10
-        #         'z_linear_velocity': 20.0,
-        #         'angular_velocity': 10.0,
-        #         'xy_angular_velocity': 0.0,
-        #         'gait': 0.5, 
-        #         'gait_xy': 2.0,
-        #         'gait_z': 10.0,
-        #         'foot_slip': 30.0,
-        #         'contact_forces': 0.0, 
-        #         'joint_limits': 0.0, 
-        #         }
         self.cost_weights = {'orientation': 100,
                 'height': 300, # 100
                 'yaw': 0.0,
@@ -115,13 +101,27 @@ class QuadrupedWalking(Task):
                 'z_linear_velocity': 20.0,
                 'angular_velocity': 10.0,
                 'xy_angular_velocity': 0.0,
-                'gait': 100.0, 
-                'gait_xy': 1.0,
+                'gait': 0.5, 
+                'gait_xy': 2.0,
                 'gait_z': 10.0,
                 'foot_slip': 30.0,
                 'contact_forces': 0.0, 
                 'joint_limits': 0.0, 
                 }
+        # self.cost_weights = {'orientation': 100,
+        #         'height': 300, # 100
+        #         'yaw': 0.0,
+        #         'linear_velocity': 20.0, # 10
+        #         'z_linear_velocity': 20.0,
+        #         'angular_velocity': 10.0,
+        #         'xy_angular_velocity': 0.0,
+        #         'gait': 100.0, 
+        #         'gait_xy': 1.0,
+        #         'gait_z': 10.0,
+        #         'foot_slip': 30.0,
+        #         'contact_forces': 0.0, 
+        #         'joint_limits': 0.0, 
+        #         }
         # DIAL like, not work
         # self.cost_weights = {'orientation': 0.5,
         #         'height': 1.0, # 100
@@ -131,27 +131,13 @@ class QuadrupedWalking(Task):
         #         'angular_velocity': 1.0,
         #         'xy_angular_velocity': 0.0,
         #         'gait': 1.0, 
-        #         'gait_xy': 0.1,
+        #         'gait_xy': 0.0,
         #         'gait_z': 1.0,
         #         'foot_slip': 0.0,
         #         'contact_forces': 0.0, 
         #         'joint_limits': 0.0, 
         #         }
-        # trot with pain position control
-        # self.cost_weights = {'orientation': 100,
-        #         'height': 300, # 100
-        #         'yaw': 0.0,
-        #         'linear_velocity': 20.0, # 10
-        #         'z_linear_velocity': 20.0,
-        #         'angular_velocity': 10.0,
-        #         'xy_angular_velocity': 0.0,
-        #         'gait': 0.5, 
-        #         'gait_xy': 2.0,
-        #         'gait_z': 10.0,
-        #         'foot_slip': 30.0,
-        #         'contact_forces': 0.003, 
-        #         'joint_limits': 1000.0, 
-        #         }
+
 
 
         self._raibert_heuristic_feedback_gain = 0.5  # 0.5
