@@ -488,6 +488,68 @@ class LogReader:
         except ImportError:
             print("matplotlib not available. Cannot create plots.")
     
+    def plot_multiple_series(self, plot_groups: Dict[str, List[str]], save_path: str = None):
+        """Plot multiple groups of time series, each group in its own subplot.
+        
+        Args:
+            plot_groups: Dictionary mapping plot titles to lists of column names
+                        e.g., {'Height Tracking': ['torso_height', 'torso_height_des'],
+                            'Velocities': ['torso_linear_vel_x_yaw_frame', 'torso_linear_vel_y_yaw_frame']}
+            save_path: Optional path to save the plot
+        """
+        try:
+            import matplotlib.pyplot as plt
+            
+            n_groups = len(plot_groups)
+            cols = 2  # Fixed to 2 columns
+            rows = (n_groups + cols - 1) // cols  # Calculate rows needed
+            
+            # Auto-calculate figsize based on number of subplots
+            figsize = (15, 5 * rows)
+            
+            fig, axes = plt.subplots(rows, cols, figsize=figsize)
+            if n_groups == 1 and rows == 1 and cols == 1:
+                axes = [axes]
+            elif rows == 1:
+                axes = axes.flatten()
+            elif cols == 1:
+                axes = axes.flatten()  
+            else:
+                axes = axes.flatten()
+            
+            for idx, (title, columns) in enumerate(plot_groups.items()):
+                ax = axes[idx]
+                
+                for column in columns:
+                    try:
+                        times, values = self.get_time_series(column)
+                        # Create a nice label from column name
+                        label = column.replace('_', ' ').title()
+                        ax.plot(times, values, label=label, linewidth=2)
+                    except KeyError:
+                        print(f"Warning: Column '{column}' not found, skipping")
+                        continue
+                
+                ax.set_xlabel('Simulation Time (s)')
+                ax.set_title(title)
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+            
+            # Hide unused subplots
+            for idx in range(n_groups, len(axes)):
+                axes[idx].set_visible(False)
+            
+            plt.tight_layout()
+            
+            if save_path:
+                plt.savefig(save_path, dpi=300, bbox_inches='tight')
+                print(f"Plot saved to {save_path}")
+            else:
+                plt.show()
+                
+        except ImportError:
+            print("matplotlib not available. Cannot create plots.")
+            
     def print_info(self):
         """Print information about the logged data."""
         print(f"\n=== Log Reader Info ===")
