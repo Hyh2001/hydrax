@@ -246,6 +246,7 @@ class SamplingBasedController(ABC):
             x: mjx.Data, u: jax.Array
         ) -> Tuple[mjx.Data, Tuple[mjx.Data, jax.Array, jax.Array]]:
             """Compute the cost and observation, then advance the state."""
+            u = jnp.clip(u, self.task.u_min, self.task.u_max)  # clip control
             x = x.replace(ctrl=u)
             x = mjx.step(model, x)  # step model + compute site positions
             cost = self.dt * self.task.running_cost(x, u)
@@ -259,6 +260,7 @@ class SamplingBasedController(ABC):
         final_trace_sites = self.task.get_trace_sites(final_state)
 
         costs = jnp.append(costs, final_cost)
+        costs = jnp.where(jnp.isnan(costs), 1e8, costs) # replace Nan cost with large cost value
         trace_sites = jnp.append(trace_sites, final_trace_sites[None], axis=0)
 
         return states, Trajectory(
