@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import math
 import numpy as np
 
-reader_base = LogReader(ROOT + "/logs/simulation_20251005_153501")
-reader_pain_reward = LogReader(ROOT + "/logs/simulation_20251005_154505")
+reader_base = LogReader(ROOT + "/logs/trot_PD_500_ref")
+reader_pain_reward = LogReader(ROOT + "/logs/simulation_20251013_155103")
 # Get basic info
 # reader.print_info()
 
@@ -16,11 +16,18 @@ column_names = ['torso_linear_vel_x_yaw_frame', 'torso_linear_vel_y_yaw_frame', 
 # column_names = ['foot_offset_FL_x', 'foot_offset_FL_y']
 # column_names = ['torso_height', 'torso_height_des']
 # column_names = ['FR_foot_force_z', 'FL_foot_force_z', 'RR_foot_force_z', 'RL_foot_force_z']
-column_names = ['torso_linear_vel_x_yaw_frame',
-                'step_des_FL_x', 'foot_pos_FL_x',
-                'step_des_FL_z', 'foot_pos_FL_z',
-                'torso_height_des', 'torso_height', 
-                'FL_foot_force_z']
+# column_names = ['torso_linear_vel_x_yaw_frame',
+#                 'step_des_FL_x', 'foot_pos_FL_x',
+#                 'step_des_FL_z', 'foot_pos_FL_z',
+#                 'torso_height_des', 'torso_height', 
+#                 'FL_foot_force_z']
+column_names = ["FL_hip_joint", "FL_hip_joint_des", 
+                "FL_thigh_joint", "FL_thigh_joint_des", 
+                "FL_calf_joint", "FL_calf_joint_des",
+                "RL_hip_joint", "RL_hip_joint_des", 
+                "RL_thigh_joint", "RL_thigh_joint_des", 
+                "RL_calf_joint", "RL_calf_joint_des",
+                ]
 
 # sanity checks, not guaranteed to be logged every time
 # column_names = ["body_weight"]
