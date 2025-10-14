@@ -104,13 +104,13 @@ def run_interactive(  # noqa: PLR0912, PLR0915
     print("Jitting the controller...")
     st = time.time()
     policy_params, rollouts = jit_optimize(mjx_data, policy_params)
-    policy_params, rollouts = jit_optimize(mjx_data, policy_params)
+    # policy_params, rollouts = jit_optimize(mjx_data, policy_params)
 
     tq = jnp.arange(0, sim_steps_per_replan) * mj_model.opt.timestep
     tk = policy_params.tk
     knots = policy_params.mean[None, ...]
     _ = jit_interp_func(tq, tk, knots)
-    _ = jit_interp_func(tq, tk, knots)
+    # _ = jit_interp_func(tq, tk, knots)
     print(f"Time to jit: {time.time() - st:.3f} seconds")
     num_traces = min(rollouts.controls.shape[1], max_traces)
 
